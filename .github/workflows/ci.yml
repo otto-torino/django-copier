@@ -16,7 +16,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: python -m pip install "copier>=9.3,<10" coverage
+        run: python -m pip install "copier>=9.3,<10" coverage mypy
+      - name: Type check template tooling
+        run: mypy tasks tests
       - name: Test template
         run: |
           coverage run --source=tasks -m unittest -v

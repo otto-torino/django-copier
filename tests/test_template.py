@@ -5,6 +5,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,10 +45,10 @@ class PostCopyTests(unittest.TestCase):
             root = Path(temporary_directory)
             (root / "example-project").mkdir()
             previous_directory = Path.cwd()
-            previous_argv = os.sys.argv
+            previous_argv = sys.argv
             try:
                 os.chdir(root)
-                os.sys.argv = [
+                sys.argv = [
                     "post_copy.py",
                     "--repo-name",
                     "example-project",
@@ -62,7 +63,7 @@ class PostCopyTests(unittest.TestCase):
                     post_copy_main()
                 self.assertEqual(env_path.read_bytes(), original)
             finally:
-                os.sys.argv = previous_argv
+                sys.argv = previous_argv
                 os.chdir(previous_directory)
 
 
@@ -201,7 +202,7 @@ class RenderingTests(unittest.TestCase):
 
     def assert_python_syntax(self, app: Path) -> None:
         result = subprocess.run(
-            [os.sys.executable, "-m", "compileall", "-q", str(app)],
+            [sys.executable, "-m", "compileall", "-q", str(app)],
             check=False,
         )
         self.assertEqual(result.returncode, 0)

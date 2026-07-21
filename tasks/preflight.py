@@ -77,10 +77,10 @@ def main() -> None:
         return
 
     print("\nCannot create the project:", file=sys.stderr)
-    for error in errors:
-        print(f"  - {error}", file=sys.stderr)
-    for port, service, error in unavailable:
-        print(f"  - port {port} ({service}): {error.strerror}", file=sys.stderr)
+    for answer_error in errors:
+        print(f"  - {answer_error}", file=sys.stderr)
+    for port, service, port_error in unavailable:
+        print(f"  - port {port} ({service}): {port_error.strerror}", file=sys.stderr)
     raise SystemExit(1)
 
 
