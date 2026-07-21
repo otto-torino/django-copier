@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml/badge.svg)](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/otto-torino/django-copier/branch/main/graph/badge.svg)](https://codecov.io/gh/otto-torino/django-copier)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 ![Copier 9.3+](https://img.shields.io/badge/Copier-9.3%2B-blue)
 ![Django 6](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
@@ -67,6 +68,8 @@ more specific `[%% ... %%]` for control blocks so Django's `{% ... %}` and
 `{{ ... }}` syntax remains untouched.
 
 Codecov reports coverage for the executable template tasks under `tasks/`.
+Mypy checks `tasks/` and the test harness under `tests/`; generation tests also
+compile-check the rendered Python sources.
 
 Run the test suite with an explicit Copier executable if it is not on `PATH`:
 
