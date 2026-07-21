@@ -45,9 +45,49 @@ jobs:
           use_oidc: true
 
   test-generated-project:
+    name: Generated project (${{ matrix.name }})
     needs: test-template
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            project_name: Default Project
+            repo_name: default-project
+            cabinet: false
+            sorl: true
+            translations: false
+            languages: "[it,en]"
+          - name: minimal
+            project_name: Minimal Project
+            repo_name: minimal-project
+            cabinet: false
+            sorl: false
+            translations: false
+            languages: "[it,en]"
+          - name: cabinet
+            project_name: Cabinet Project
+            repo_name: cabinet-project
+            cabinet: true
+            sorl: true
+            translations: false
+            languages: "[it,en]"
+          - name: multilingual
+            project_name: Multilingual Project
+            repo_name: multilingual-project
+            cabinet: false
+            sorl: true
+            translations: true
+            languages: "[it,en]"
+          - name: full
+            project_name: Full Project
+            repo_name: full-project
+            cabinet: true
+            sorl: true
+            translations: true
+            languages: "[it,en,fr]"
     permissions:
       contents: read
     steps:
@@ -57,28 +97,28 @@ jobs:
           python-version: "3.12"
       - name: Install Copier
         run: python -m pip install "copier>=9.3,<10"
-      - name: Generate the full project
+      - name: Generate the ${{ matrix.name }} project
         run: |
           copier copy --trust --defaults --vcs-ref=HEAD \
-            --data project_name="Generated CI Project" \
-            --data repo_name=generated-ci-project \
-            --data use_cabinet=true \
-            --data use_sorl_thumbnail=true \
-            --data use_translations=true \
-            --data languages='[it,en,fr]' \
+            --data project_name="${{ matrix.project_name }}" \
+            --data repo_name="${{ matrix.repo_name }}" \
+            --data use_cabinet="${{ matrix.cabinet }}" \
+            --data use_sorl_thumbnail="${{ matrix.sorl }}" \
+            --data use_translations="${{ matrix.translations }}" \
+            --data languages='${{ matrix.languages }}' \
             --data default_language=it \
-            . "${{ runner.temp }}/generated-ci-project"
+            . "${{ runner.temp }}/${{ matrix.repo_name }}"
       - name: Bootstrap the generated project
-        working-directory: ${{ runner.temp }}/generated-ci-project
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make bootstrap
       - name: Run generated Django tests
-        working-directory: ${{ runner.temp }}/generated-ci-project
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make test
       - name: Show service logs after failure
         if: failure()
-        working-directory: ${{ runner.temp }}/generated-ci-project
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: docker compose logs --no-color
       - name: Remove generated services and volumes
         if: always()
-        working-directory: ${{ runner.temp }}/generated-ci-project
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make clean

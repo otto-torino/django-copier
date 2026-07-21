@@ -323,6 +323,7 @@ class RenderingTests(unittest.TestCase):
                         f'    "{language}",' for language in languages
                     )
                     self.assertIn(rendered_languages, settings)
+                self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
                 self.assert_compose_config(destination, app)
                 self.assert_no_generator_markers(destination)
@@ -529,6 +530,11 @@ class RenderingTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0)
+
+    def assert_no_compiled_artifacts(self, destination: Path) -> None:
+        for path in destination.rglob("*"):
+            self.assertNotEqual(path.name, "__pycache__", path)
+            self.assertNotEqual(path.suffix, ".pyc", path)
 
     def assert_compose_config(self, destination: Path, app: Path) -> None:
         if DOCKER is None:
