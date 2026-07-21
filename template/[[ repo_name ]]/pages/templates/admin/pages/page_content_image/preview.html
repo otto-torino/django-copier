@@ -1,0 +1,8 @@
+<div style="background-color: {{ object.background_color }}">
+    {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
+    {% if object.image %}
+    <a {% if object.url %}href={{ object.url }}{% endif %}>
+        <img class="img-fluid" src="{{ object.image.url }}" alt="{{ object.name }}">
+    </a>
+    {% endif %}
+</div>

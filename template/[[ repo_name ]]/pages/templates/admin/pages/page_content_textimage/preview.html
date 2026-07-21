@@ -1,0 +1,45 @@
+{% load editor_js_filters %}
+<style>
+    {# we do not need to add "flex: 0 0 auto" because is already applied using col-12 as other class #}
+    @media screen and (min-width: 768px)  {
+      {% if object.image_position == 'right' %} 
+        .col-md-custom-{{ object.id }}-left {
+            width: {{ object.left_column_width }}%;
+        }
+
+        .col-md-custom-{{ object.id }}-right {
+            width: calc(100% - {{ object.left_column_width }}%);
+        }
+      {% else %}
+      .col-md-custom-{{ object.id }}-right {
+            width: {{ object.left_column_width }}%;
+        }
+
+        .col-md-custom-{{ object.id }}-left {
+            width: calc(100% - {{ object.left_column_width }}%);
+        }
+      {% endif %}
+    }
+</style>
+<div style="background-color: {{ object.background_color }}">
+    {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
+    {% if object.image_position == 'top' or object.image_position == 'bottom' %}
+        <div class="d-flex flex-column align-items-start gap-2">
+            <div class="col-12 col-md-custom-{{ object.id }}-left {% if object.image_position == 'top' %}order-1{% endif %}">{{ object.text|render_editor_js }}</div>
+            <img
+                src="{{ object.image.url }}"
+                alt="{{ object.name }}">
+        </div>
+    {% else %}
+        <div class="row {% if object.image_position == 'left' %}flex-row-reverse{% endif %}">
+            <div class="col-12 col-md-custom-{{ object.id }}-left">{{ object.text|render_editor_js }}</div>
+            {% if object.image %}
+                <div class="col-12 col-md-custom-{{ object.id }}-right">
+                    <img class="img-fluid"
+                         src="{{ object.image.url }}"
+                         alt="{{ object.name }}">
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

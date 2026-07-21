@@ -1,0 +1,66 @@
+{% extends 'page.html' %}
+{% load i18n static humanize core [%% if use_sorl_thumbnail %%]sorl_thumbnail[%% else %%]sorl_fallback[%% endif %%] search_tags %}
+{% block title %}{{ page.title }} | {{ block.super }}{% endblock %}
+{% block meta_title %}{{ page.meta_title|default:page.title }}{% endblock %}
+{% block meta_og_title %}{{ page.meta_title|default:page.title }}{% endblock %}
+{% block meta_tw_title %}{{ page.meta_title|default:page.title }}{% endblock %}
+{% block meta_description %}{{ page.meta_description }}{% endblock %}
+{% block meta_og_description %}{{ page.meta_description }}{% endblock %}
+{% block meta_tw_description %}{{ page.meta_description }}{% endblock %}
+{% block meta_keywords %}
+    {% if page.meta_keywords %}
+        {{ page.meta_keywords }}
+    {% else %}
+        {% for tag in page.tags.all %}
+            {% if forloop.counter0 %},{% endif %}
+            {{ tag }}
+        {% endfor %}
+    {% endif %}
+{% endblock %}
+{% block meta_og_url %}{{ request.build_absolute_uri }}{% endblock %}
+{% block meta_tw_url %}{{ request.build_absolute_uri }}{% endblock %}
+
+{% block extra_css %}
+    {% if page.has_map_content %}
+        <link rel="stylesheet" href="{% static 'core/src/vendor/leaflet/leaflet.css' %}" />
+        <link rel="stylesheet" href="{% static 'core/src/vendor/leaflet-fullscreen/leaflet.fullscreen.css' %}" />
+    {% endif %}
+{% endblock %}
+{% block extra_js %}
+    {% if page.has_map_content %}
+        <script src="{% static 'core/src/vendor/leaflet/leaflet.js' %}"></script>
+        <script src="{% static 'core/src/vendor/leaflet-fullscreen/Leaflet.fullscreen.min.js' %}"></script>
+    {% endif %}
+{% endblock %}
+
+{% block top_css %}max-w-screen overflow-hidden relative{% endblock top_css %}
+{% block hero %}
+    <div class="relative">
+        {% thumbnail page.image "1920x500" crop=page.image.sorl as cropped %}
+            <img src={{ cropped.url }} alt="image" class="hidden lg:block w-full" width="1920" height="500" />
+        {% endthumbnail %}
+        {% thumbnail page.image "800x400" crop=page.image.sorl as cropped %}
+            <img src={{ cropped.url }} alt="image" class="lg:hidden w-full" width="800" height="400" />
+        {% endthumbnail %}
+        <div class="md:max-w-5xl md:mx-auto px-5">
+            <h1>{{ page.title }}</h1>
+        </div>
+    </div>
+{% endblock hero %}
+
+{% block content %}
+    <main>
+        {% if page.last_updated %}
+            <div class="flex justify-center mt-6 text-gray-400 text-sm">{% trans 'Ultimo aggiornamento:' %} {{ updated|naturaltime }}</div>
+        {% endif %}
+        <div id="content-blocks" class="flex flex-col py-4 text-lg">
+            {% for content_block in page.content_blocks.for_content %}
+                {% if content_block.enabled %}
+                    {% with template=content_block.content_object.get_render_template %}
+                        {% include template with obj=content_block.content_object request=request only %}
+                    {% endwith %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </main>
+{% endblock %}

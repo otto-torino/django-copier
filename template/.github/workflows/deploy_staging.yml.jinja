@@ -1,0 +1,191 @@
+name: Deploy staging
+
+on:
+  push:
+    branches:
+      - "staging"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, zoro]
+    environment: staging
+    timeout-minutes: 30
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      ALLOWED_HOSTS: ${{ vars.ALLOWED_HOSTS }}
+      CSRF_TRUSTED_ORIGINS: ${{ vars.CSRF_TRUSTED_ORIGINS }}
+      SECURE_HSTS_SECONDS: ${{ vars.SECURE_HSTS_SECONDS }}
+      EMAIL_BACKEND: ${{ vars.EMAIL_BACKEND }}
+      EMAIL_HOST: ${{ vars.EMAIL_HOST }}
+      EMAIL_PORT: ${{ vars.EMAIL_PORT }}
+      EMAIL_USE_TLS: ${{ vars.EMAIL_USE_TLS }}
+      EMAIL_USE_SSL: ${{ vars.EMAIL_USE_SSL }}
+      EMAIL_TIMEOUT: ${{ vars.EMAIL_TIMEOUT }}
+      DEFAULT_FROM_EMAIL: ${{ vars.DEFAULT_FROM_EMAIL }}
+      SERVER_EMAIL: ${{ vars.SERVER_EMAIL }}
+      EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+      LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+      COOKIERULEZ_WIDGET_CODE: ${{ vars.COOKIERULEZ_WIDGET_CODE }}
+      APP_PORT: ${{ vars.[[ repo_name | upper | replace('-', '_') ]]_STAGING_PORT }}
+      APP_CONTAINER: [[ repo_name ]]_staging
+      APP_IMAGE: [[ repo_name ]]_staging_app
+      COMPOSE_FILE: docker-compose.staging.yml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create deploy env file
+        run: |
+          for name in SECRET_KEY DB_NAME DB_USER DB_PASSWORD ALLOWED_HOSTS CSRF_TRUSTED_ORIGINS APP_PORT; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing $name deploy value"
+              exit 1
+            fi
+          done
+
+          umask 077
+          {
+            echo "SECRET_KEY=$SECRET_KEY"
+            echo "ALLOWED_HOSTS=$ALLOWED_HOSTS"
+            echo "CSRF_TRUSTED_ORIGINS=$CSRF_TRUSTED_ORIGINS"
+            echo "SECURE_HSTS_SECONDS=${SECURE_HSTS_SECONDS:-3600}"
+            echo "DB_NAME=$DB_NAME"
+            echo "DB_USER=$DB_USER"
+            echo "DB_PASSWORD=$DB_PASSWORD"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=5432"
+            echo "APP_PORT=$APP_PORT"
+          } > .env.deploy
+
+      - name: Preserve current image and back up database
+        run: |
+          if ! docker container inspect "$APP_CONTAINER" >/dev/null 2>&1; then
+            echo "No previous deployment found; skipping backup and rollback snapshot."
+            exit 0
+          fi
+
+          previous_image=$(docker container inspect \
+            --format '{{.Image}}' "$APP_CONTAINER")
+          echo "PREVIOUS_IMAGE_ID=$previous_image" >> "$GITHUB_ENV"
+
+          if [ "$(docker container inspect --format '{{.State.Running}}' "$APP_CONTAINER")" != "true" ]; then
+            echo "Previous container is not running; skipping database backup."
+            exit 0
+          fi
+
+          backup_dir="$HOME/backups/[[ repo_name ]]/staging"
+          backup_file="$backup_dir/database_$(date -u +%Y%m%dT%H%M%SZ).dump"
+          backup_tmp="$backup_file.tmp"
+          mkdir -p "$backup_dir"
+          chmod 700 "$backup_dir"
+
+          docker exec "$APP_CONTAINER" sh -c \
+            'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
+            > "$backup_tmp"
+          mv "$backup_tmp" "$backup_file"
+          chmod 600 "$backup_file"
+          find "$backup_dir" -type f -name '*.dump' -mtime +30 -delete
+          echo "Database backup created: $backup_file"
+
+      - name: Deploy
+        run: |
+          echo "DEPLOY_STARTED=1" >> "$GITHUB_ENV"
+          docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up \
+            -d --build --force-recreate --remove-orphans \
+            --wait --wait-timeout 180
+
+      - name: Smoke test
+        run: |
+          curl --fail --show-error --silent \
+            --retry 10 --retry-delay 3 --retry-all-errors \
+            --connect-timeout 5 --max-time 10 \
+            "http://127.0.0.1:$APP_PORT/" >/dev/null
+
+      - name: Deployment diagnostics
+        if: failure()
+        continue-on-error: true
+        run: |
+          docker compose --env-file .env.deploy -f "$COMPOSE_FILE" ps
+          docker compose --env-file .env.deploy -f "$COMPOSE_FILE" logs --tail 200
+
+      - name: Roll back application image
+        if: failure()
+        run: |
+          if [ "${DEPLOY_STARTED:-0}" != "1" ] || [ -z "${PREVIOUS_IMAGE_ID:-}" ]; then
+            echo "No previous image is available for rollback."
+            exit 0
+          fi
+
+          docker image tag "$PREVIOUS_IMAGE_ID" "$APP_IMAGE"
+          docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up \
+            -d --no-build --force-recreate --remove-orphans \
+            --wait --wait-timeout 180
+          curl --fail --show-error --silent \
+            --retry 10 --retry-delay 3 --retry-all-errors \
+            --connect-timeout 5 --max-time 10 \
+            "http://127.0.0.1:$APP_PORT/" >/dev/null
+          echo "Previous application image restored. Database backup was not restored automatically."
+
+      - name: Cleanup images
+        if: success()
+        run: docker image prune -f
+
+      - name: Remove deploy env file
+        if: always()
+        run: rm -f .env.deploy
+
+      - name: Notify KChat
+        if: always()
+        continue-on-error: true
+        env:
+          WEBHOOK_KCHAT: ${{ secrets.WEBHOOK_KCHAT }}
+          JOB_STATUS: ${{ job.status }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.sha }}
+          COMMIT_URL: ${{ github.event.head_commit.url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, github.sha) }}
+          RUN_URL: ${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        run: |
+          if [ -z "$WEBHOOK_KCHAT" ]; then
+            echo "WEBHOOK_KCHAT not configured, skipping notification."
+            exit 0
+          fi
+
+          short_sha="${SHA::7}"
+          case "$JOB_STATUS" in
+            success)   header="Deploy staging completato" ;;
+            cancelled) header="Deploy staging annullato" ;;
+            *)         header="Deploy staging fallito" ;;
+          esac
+
+          message=$(printf '*%s*\nRepository: %s\nBranch: %s\nCommit: [%s](%s) (%s)\nAutore: %s' \
+            "$header" "$REPOSITORY" "$BRANCH" "$COMMIT_MESSAGE" \
+            "$COMMIT_URL" "$short_sha" "$ACTOR")
+
+          if [ "$JOB_STATUS" != "success" ]; then
+            message="$message"$'\n'"Log: $RUN_URL"
+          fi
+
+          if command -v jq >/dev/null 2>&1; then
+            payload=$(jq -n --arg text "$message" '{text: $text}')
+          else
+            payload=$(MESSAGE="$message" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MESSAGE"]}))')
+          fi
+
+          curl -X POST "$WEBHOOK_KCHAT" \
+            -H "Content-Type: application/json" \
+            -d "$payload"

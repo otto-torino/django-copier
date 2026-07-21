@@ -1,0 +1,70 @@
+services:
+
+  db:
+    image: postgres:15.18-bookworm
+    container_name: [[repo_name]]_postgres
+    restart: unless-stopped
+    env_file:
+      - ./[[ repo_name ]]/.env
+    environment:
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: [[repo_name]]_mailhog
+    logging:
+      driver: 'none'  # disable saving logs
+    ports:
+      - '127.0.0.1:1025:1025' # smtp server
+      - '127.0.0.1:8025:8025' # web ui
+
+  app:
+    image: [[repo_name]]_app
+    container_name: [[repo_name]]_app
+    build:
+      context: ./
+      dockerfile: ./compose/app/Dockerfile.local
+    restart: unless-stopped
+    working_dir: /home/app/[[repo_name]]/[[repo_name]]
+    env_file:
+      - ./[[ repo_name ]]/.env
+    command: bash -c "python manage.py migrate && python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/home/app/[[repo_name]]
+    ports:
+      - '127.0.0.1:5678:5678'
+      - '127.0.0.1:8000:8000'
+      - '127.0.0.1:8001:8001' # to run pdb
+    depends_on:
+      db:
+        condition: service_healthy
+
+  tailwind:
+    image: [[repo_name]]_app
+    container_name: [[repo_name]]_tailwind
+    restart: unless-stopped
+    working_dir: /home/app/[[repo_name]]/[[repo_name]]
+    env_file:
+      - ./[[repo_name]]/.env
+    command: bash -c "npm --prefix theme/static_src ci && python manage.py tailwind start"
+    # Without tty, no stdin, and tailwind watcher aborts
+    # https://github.com/tailwindlabs/tailwindcss/issues/5324
+    tty: true
+    volumes:
+      - .:/home/app/[[repo_name]]
+    depends_on:
+      - app
+
+volumes:
+
+  db-data:
+    driver: local

@@ -1,0 +1,104 @@
+_min_copier_version: "9.3.0"
+_subdirectory: template
+_templates_suffix: .jinja
+
+_envops:
+  block_start_string: "[%%"
+  block_end_string: "%%]"
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  comment_start_string: "[#"
+  comment_end_string: "#]"
+  keep_trailing_newline: true
+  undefined: jinja2.StrictUndefined
+
+_exclude:
+  - "[[ repo_name ~ '/cabinet' if not use_cabinet else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/pages/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/cabinet/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/tagall/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/core/translation.py' if not use_translations else '.copier-never-match' ]]"
+
+_tasks:
+  - command:
+      - "[[ _copier_python ]]"
+      - "[[ _copier_conf.src_path ]]/tasks/preflight.py"
+      - "--repo-name"
+      - "[[ repo_name ]]"
+      - "--languages"
+      - "[[ languages | join(',') ]]"
+      - "--default-language"
+      - "[[ default_language ]]"
+      - "--use-translations"
+      - "[[ use_translations | lower ]]"
+    when: "[[ _copier_operation == 'copy' ]]"
+  - command:
+      - "[[ _copier_python ]]"
+      - "[[ _copier_conf.src_path ]]/tasks/post_copy.py"
+      - "--repo-name"
+      - "[[ repo_name ]]"
+      - "--db-user"
+      - "[[ db_user ]]"
+    when: "[[ _copier_operation == 'copy' ]]"
+
+project_name:
+  type: str
+  default: My New Project
+  help: Nome leggibile del progetto
+
+project_description:
+  type: str
+  default: My New Project description
+  help: Breve descrizione usata nel README
+
+repo_name:
+  type: str
+  default: "[[ project_name | lower | replace(' ', '-') ]]"
+  help: Slug del repository e nome della directory applicativa
+
+use_cabinet:
+  type: bool
+  default: false
+  help: Include l'applicazione cabinet
+
+use_sorl_thumbnail:
+  type: bool
+  default: true
+  help: Usa sorl-thumbnail invece del fallback locale
+
+use_translations:
+  type: bool
+  default: false
+  help: Abilita django-modeltranslation e le URL localizzate
+
+languages:
+  type: yaml
+  default: [it, en]
+  when: "[[ use_translations ]]"
+  help: Elenco YAML di almeno due codici lingua Django
+
+default_language:
+  type: str
+  default: it
+  when: "[[ use_translations ]]"
+  help: Lingua predefinita, inclusa nell'elenco languages
+
+timezone:
+  type: str
+  default: Europe/Rome
+  help: Timezone usata da Django e dalle immagini Docker
+
+author:
+  type: str
+  default: otto
+  help: Organizzazione o utente GitHub
+
+email:
+  type: str
+  default: logs@otto.srl
+  help: Email applicativa predefinita
+
+db_user:
+  type: str
+  default: "[[ repo_name ]]"
+  help: Utente PostgreSQL locale

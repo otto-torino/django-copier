@@ -1,0 +1,30 @@
+{% if bootstrap %}
+<div id="{{ obj.get_unique_id }}" class="js-pswp-gallery container-fluid">
+    <div class="row g-2">
+        {% for image in obj.images.all %}
+            <div class="col-12 col-sm-6 col-md-4 col-xl-3">
+                <a class="js-lightbox-item" data-pswp-width="{{ image.file.width }}" data-pswp-height="{{ image.file.height }}" data-pswp-src="{{ image.file.url }}">
+                    {% include 'pages/grid/grid_item.html' with image=image content=obj %}
+                </a>
+                {% if image.caption %}<p class="small text-muted mb-0">{{ image.caption|default_if_none:"" }}</p>{% endif %}
+                {% if image.caption %}<p class="small text-muted mb-0 pswp-caption-content">{{ image.caption|default_if_none:"" }}</p>{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div id="{{ obj.get_unique_id }}" class="js-pswp-gallery grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-1">
+    {% for image in obj.images.all %}
+        <div class="flex flex-col justify-end">
+            <a class="js-lightbox-item" data-pswp-width="{{ image.file.width }}" data-pswp-height="{{ image.file.height }}" data-pswp-src="{{ image.file.url }}">
+                {% include 'pages/grid/grid_item.html' with image=image content=obj %}
+            </a>
+            <div class="pswp-caption-content {% if not obj.show_captions %}hidden{% endif %}">
+                {% if image.caption %}<p class="small text-secondary text-center mb-0 text-3xl">{{ image.caption|default_if_none:"" }}</p>{% endif %}
+                {% if image.credits %}<p class="small text-secondary text-center mb-0">{{ image.credits|default_if_none:"" }}</p>{% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+

@@ -1,0 +1,6 @@
+# Local development dependencies go here
+-r common.txt
+
+debugpy==1.8.21
+django-debug-toolbar==7.0.0
+django-browser-reload==1.21.0

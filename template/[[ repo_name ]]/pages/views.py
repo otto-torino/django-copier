@@ -1,0 +1,119 @@
+import logging
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.sites.shortcuts import get_current_site
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.template import loader
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_GET
+
+from pages.handlers import FeedFetchError, consume_rss_feed
+
+from .models import Page, PageContentRssFeed
+
+DEFAULT_TEMPLATE = "pages/default.html"
+logger = logging.getLogger(__name__)
+
+# This view is called from PageFallbackMiddleware.process_response
+# when a 404 is raised, which often means CsrfViewMiddleware.process_view
+# has not been called even if CsrfViewMiddleware is installed. So we need
+# to use @csrf_protect, in case the template needs {% csrf_token %}.
+# However, we can't just wrap this view; if no matching page exists,
+# or a redirect is required for authentication, the 404 needs to be returned
+# without any CSRF checks. Therefore, we only
+# CSRF protect the internal implementation.
+
+
+def page(request, url):
+    """
+    Public interface to the page view.
+
+    Models: `pages.page`
+    Templates: Uses the template defined by the ``template_name`` field,
+        or :template:`pages/default.html` if template_name is not defined.
+    Context:
+        page
+            `pages.page` object
+    """
+    url = f"/{url.strip('/')}/"
+    site_id = get_current_site(request).id
+    p = get_object_or_404(Page, url=url, sites=site_id)
+    return render_page(request, p)
+
+
+@csrf_protect
+def render_page(request, p):
+    """
+    Internal interface to the page view.
+    """
+    if not p.is_accessible_by(request.user):
+        if (
+            p.status == Page.PUBLISHED
+            and p.registration_required
+            and not request.user.is_authenticated
+        ):
+            from django.contrib.auth.views import redirect_to_login
+
+            return redirect_to_login(request.path)
+        raise Http404
+
+    if p.template_name:
+        template = loader.select_template((p.template_name, DEFAULT_TEMPLATE))
+    else:
+        template = loader.get_template(DEFAULT_TEMPLATE)
+
+    date = p.modified
+    for block in p.content_blocks.for_content():
+        if block.modified > date:
+            date = block.modified
+
+    context = {
+        "page": p,
+        "updated": date,
+    }
+    
+    response = HttpResponse(template.render(context, request))
+    return response
+
+
+def _rss_context(page_content):
+    try:
+        entries = consume_rss_feed(page_content.rss_feed_url)
+    except FeedFetchError:
+        logger.warning(
+            "Unable to fetch RSS feed for page content %s",
+            page_content.pk,
+            exc_info=True,
+        )
+        return {"entries": [], "feed_error": True}
+    return {"entries": entries[: page_content.num_items], "feed_error": False}
+
+
+@require_GET
+@staff_member_required
+def page_content_rss_feed_preview(request, page_content_id):
+    page_content = get_object_or_404(PageContentRssFeed, id=page_content_id)
+    return render(
+        request,
+        "admin/pages/page_content_rss_feed/rss_feed_admin.html",
+        _rss_context(page_content),
+    )
+
+
+@require_GET
+def page_content_rss_feed_content(request, page_content_id):
+    site = get_current_site(request)
+    page_content = get_object_or_404(
+        PageContentRssFeed.objects.select_related("page"),
+        id=page_content_id,
+        enabled=True,
+        page__sites=site,
+    )
+    if not page_content.page.is_accessible_by(request.user):
+        raise Http404
+    return render(
+        request,
+        "pages/page_content_rss_feed_content.html",
+        _rss_context(page_content),
+    )

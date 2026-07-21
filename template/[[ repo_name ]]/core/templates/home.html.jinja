@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load search_tags %}
+{% block content %}
+    <div class="md:max-w-5xl md:mx-auto p-5">
+        <section>
+            <h1>[[ project_name ]]</h1>
+            <p>[[ project_description ]]</p>
+            <div class="max-w-sm mx-auto">
+                {% search_widget %}
+            </div>
+        </section>
+    </div>
+{% endblock %}
+

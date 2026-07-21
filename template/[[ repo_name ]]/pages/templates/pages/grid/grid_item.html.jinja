@@ -1,0 +1,12 @@
+{% load [%% if use_sorl_thumbnail %%]sorl_thumbnail[%% else %%]sorl_fallback[%% endif %%] %}
+{% if content.crop %}
+    {% thumbnail image content.crop_size crop=image.file.sorl as im %}
+        <img src="{{ im.url }}"
+             alt="{{ image.caption|default_if_none:"" }}"
+             class="block w-full object-cover object-center" />
+    {% endthumbnail %}
+{% else %}
+        <img src="{{ image.file.url }}"
+             alt="{{ image.caption|default_if_none:"" }}"
+             class="block w-full object-cover object-center" />
+{% endif %}

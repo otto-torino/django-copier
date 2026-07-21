@@ -1,0 +1,4 @@
+[start]
+# working directory
+command=cd .. && make start
+output=terminal

@@ -1,0 +1,17 @@
+{% load static components %}
+
+<div class="collapse collapse-arrow border border-base-300">
+  <input type="radio" name="{{ attributes.id }}" />
+
+  <div class="collapse-title">
+    {% if slots.header %}
+      {% render_slot slots.header %}
+    {% else %}
+      <h3 class="font-bold text-xl">{{ attributes.title }}</h3>
+    {% endif %}
+  </div>
+
+  <div class="collapse-content">
+    {% render_slot slots.inner_block %}
+  </div>
+</div>

@@ -1,0 +1,7 @@
+{% load editor_js_filters %}
+<div style="background-color: {{ object.background_color }}">
+    {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
+    {{ object.text|render_editor_js }}
+    <div id="map{{ object.id }}" style="height: {{ object.height }}px;"></div>
+    {% include "pages/includes/map_script.html" with map_object=object only %}
+</div>

@@ -1,0 +1,32 @@
+{% extends 'pages/page_content_base.html' %}
+
+{% block inner_block %}
+  <div class="js-pswp-gallery {% if obj.show_captions %}mb-8{% endif %}">
+    <a href="{{ obj.image_content.url }}" class="js-lightbox-item block cursor-zoom-in" data-pswp-width="{{ obj.image_content.width }}" data-pswp-height="{{ obj.image_content.height }}">
+      <img 
+        class="w-full h-auto" 
+        src="{{ obj.image_content.url }}" 
+        alt="{{ obj.caption }}{% if obj.credits %} by {{ obj.credits }}{% endif %}" />
+      {% if obj.show_captions %}
+        <span class="pswp-caption-content">
+          {% if obj.caption %}{{ obj.caption }} {% endif %} 
+          <em>{% if obj.credits %} by {{ obj.credits }}{% endif %}</em>
+        </span>
+      {% endif %}
+    </a>
+  
+    {% if obj.show_captions %}
+      {% if obj.credits or obj.caption %}
+        <!-- image caption -->      
+        <div class="text-xs font-semibold bg-primary/80 text-white py-2 px-8 absolute right-5 bottom-0">
+          {% if obj.caption %}{{ obj.caption }}{% endif %}
+          {% if obj.credits and obj.caption %} | {% endif %}
+          {% if obj.credits %} {{ obj.credits }} {% endif %}
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+{% endblock inner_block %}
+
+

@@ -1,0 +1,92 @@
+# Multi-stage deploy image. The runtime bundles PostgreSQL following the
+# staging convention used by the self-hosted runner.
+
+FROM node:24.18.0-bookworm-slim AS node
+
+FROM python:3.12.13-slim-bookworm AS builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=[[ timezone ]] \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DJANGO_SETTINGS_MODULE=core.settings.production
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+        libffi-dev \
+        libssl-dev \
+        gettext \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+COPY [[repo_name]]/requirements/ requirements/
+RUN pip install --no-cache-dir -r requirements/production.txt
+
+COPY [[repo_name]]/ .
+
+# Install exactly the locked frontend dependencies, build the theme and then
+# bake all static assets into the image.
+RUN npm --prefix theme/static_src ci \
+    && npm --prefix theme/static_src run build \
+    && SECRET_KEY=docker-build \
+    DB_HOST=localhost \
+    DB_PORT=5432 \
+    DB_NAME=build \
+    DB_USER=build \
+    DB_PASSWORD=build \
+    python manage.py collectstatic --noinput \
+    && python manage.py compilemessages
+
+FROM python:3.12.13-slim-bookworm
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=[[ timezone ]] \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DJANGO_SETTINGS_MODULE=core.settings.production \
+    PATH="/opt/venv/bin:/usr/lib/postgresql/15/bin:$PATH" \
+    STATIC_ROOT=/app/static \
+    MEDIA_ROOT=/app/media \
+    DB_HOST=127.0.0.1 \
+    DB_PORT=5432 \
+    POSTGRES_DATA_DIR=/var/lib/postgresql/data
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gosu \
+        gettext \
+        libpq5 \
+        libjpeg62-turbo \
+        media-types \
+        postgresql \
+        postgresql-client \
+        tini \
+        zlib1g \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/media /var/lib/postgresql/data
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app /app
+COPY compose/app/entrypoint.production.sh /entrypoint.sh
+COPY compose/app/healthcheck.production.sh /healthcheck.sh
+RUN chmod +x /entrypoint.sh /healthcheck.sh \
+    && useradd --system --home /app --shell /usr/sbin/nologin django \
+    && chown -R django:django /app \
+    && chown -R postgres:postgres /var/lib/postgresql
+
+EXPOSE 8000
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
