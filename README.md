@@ -1,6 +1,7 @@
 # Django Copier
 
 [![CI](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml/badge.svg)](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/otto-torino/django-copier/branch/main/graph/badge.svg)](https://codecov.io/gh/otto-torino/django-copier)
 ![Copier 9.3+](https://img.shields.io/badge/Copier-9.3%2B-blue)
 ![Django 6](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
@@ -64,6 +65,8 @@ The rendered project lives under `template/`; `copier.yml` defines questions,
 delimiters, exclusions and tasks. Copier uses `[[ ... ]]` for values and the
 more specific `[%% ... %%]` for control blocks so Django's `{% ... %}` and
 `{{ ... }}` syntax remains untouched.
+
+Codecov reports coverage for the executable template tasks under `tasks/`.
 
 Run the test suite with an explicit Copier executable if it is not on `PATH`:
 
