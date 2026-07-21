@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import os
 import shutil
 import stat
@@ -9,14 +11,28 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from tasks.post_copy import dotenv_value
 from tasks.post_copy import main as post_copy_main
+from tasks.post_copy import parse_args as parse_post_copy_args
+from tasks.preflight import main as preflight_main
+from tasks.preflight import parse_args as parse_preflight_args
+from tasks.preflight import unavailable_ports
 from tasks.preflight import validate_answers
 
 
 ROOT = Path(__file__).resolve().parents[1]
 COPIER = os.environ.get("COPIER_BIN") or shutil.which("copier")
+COOKIECUTTER = shutil.which("cookiecutter")
+COOKIECUTTER_TEMPLATE = Path(
+    os.environ.get(
+        "COOKIECUTTER_TEMPLATE",
+        str(ROOT.parent / "django-cookiecutter"),
+    )
+)
 DOCKER = shutil.which("docker")
+RUN_COOKIECUTTER_PARITY = os.environ.get("RUN_COOKIECUTTER_PARITY") == "1"
 
 
 class AnswerValidationTests(unittest.TestCase):
@@ -39,8 +55,118 @@ class AnswerValidationTests(unittest.TestCase):
         errors = validate_answers(answers)
         self.assertEqual(len(errors), 4)
 
+    def test_translation_rules_are_ignored_when_disabled(self) -> None:
+        answers = argparse.Namespace(
+            repo_name="example-project",
+            languages="invalid",
+            default_language="missing",
+            use_translations="false",
+        )
+        self.assertEqual(validate_answers(answers), [])
+
+
+class PreflightTests(unittest.TestCase):
+    def test_cli_arguments_are_parsed(self) -> None:
+        arguments = [
+            "preflight.py",
+            "--repo-name",
+            "example-project",
+            "--languages",
+            "it,en",
+            "--default-language",
+            "it",
+            "--use-translations",
+            "true",
+        ]
+        with mock.patch.object(sys, "argv", arguments):
+            answers = parse_preflight_args()
+        self.assertEqual(answers.repo_name, "example-project")
+        self.assertEqual(answers.languages, "it,en")
+
+    def test_available_ports_allow_generation(self) -> None:
+        answers = argparse.Namespace(
+            repo_name="example-project",
+            languages="it,en",
+            default_language="it",
+            use_translations="true",
+        )
+        with (
+            mock.patch("tasks.preflight.parse_args", return_value=answers),
+            mock.patch("tasks.preflight.unavailable_ports", return_value=[]),
+        ):
+            preflight_main()
+
+    def test_all_preflight_errors_are_printed(self) -> None:
+        answers = argparse.Namespace(
+            repo_name="Bad_Name",
+            languages="it",
+            default_language="en",
+            use_translations="true",
+        )
+        port_error = OSError(98, "Address already in use")
+        stderr = io.StringIO()
+        with (
+            mock.patch("tasks.preflight.parse_args", return_value=answers),
+            mock.patch(
+                "tasks.preflight.unavailable_ports",
+                return_value=[(8000, "Django", port_error)],
+            ),
+            contextlib.redirect_stderr(stderr),
+            self.assertRaises(SystemExit),
+        ):
+            preflight_main()
+        output = stderr.getvalue()
+        self.assertIn("repo_name must contain", output)
+        self.assertIn("port 8000 (Django): Address already in use", output)
+
+    def test_unavailable_port_is_reported(self) -> None:
+        probe = mock.MagicMock()
+        probe.__enter__.return_value.bind.side_effect = OSError(
+            98,
+            "Address already in use",
+        )
+        with (
+            mock.patch("tasks.preflight.LOCAL_PORTS", {8000: "Django"}),
+            mock.patch("tasks.preflight.socket.socket", return_value=probe),
+        ):
+            result = unavailable_ports()
+        self.assertEqual(result[0][:2], (8000, "Django"))
+
 
 class PostCopyTests(unittest.TestCase):
+    def test_cli_arguments_are_parsed(self) -> None:
+        arguments = [
+            "post_copy.py",
+            "--repo-name",
+            "example-project",
+            "--db-user",
+            "database-user",
+        ]
+        with mock.patch.object(sys, "argv", arguments):
+            answers = parse_post_copy_args()
+        self.assertEqual(answers.repo_name, "example-project")
+        self.assertEqual(answers.db_user, "database-user")
+
+    def test_dotenv_values_are_escaped_and_reject_newlines(self) -> None:
+        self.assertEqual(dotenv_value('a\\b"c'), '"a\\\\b\\"c"')
+        for value in ("line one\nline two", "line one\rline two"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                dotenv_value(value)
+
+    def test_missing_application_directory_is_rejected(self) -> None:
+        answers = argparse.Namespace(repo_name="missing", db_user="database-user")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            previous_directory = Path.cwd()
+            try:
+                os.chdir(temporary_directory)
+                with (
+                    mock.patch("tasks.post_copy.parse_args", return_value=answers),
+                    self.assertRaises(FileNotFoundError),
+                ):
+                    post_copy_main()
+            finally:
+                os.chdir(previous_directory)
+
     def test_env_is_private_and_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -81,6 +207,7 @@ class RenderingTests(unittest.TestCase):
             "--defaults",
             "--skip-tasks",
             "--quiet",
+            "--vcs-ref=HEAD",
         ]
         for answer in data:
             command.extend(("--data", answer))
@@ -274,7 +401,12 @@ class RenderingTests(unittest.TestCase):
         shutil.copytree(
             ROOT,
             template_repository,
-            ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"),
+            ignore=shutil.ignore_patterns(
+                ".git",
+                ".parity",
+                "__pycache__",
+                "*.pyc",
+            ),
         )
         self.git(template_repository, "init", "-q")
         self.git(template_repository, "config", "user.name", "Template Test")
@@ -411,6 +543,211 @@ class RenderingTests(unittest.TestCase):
             ["git", "-C", str(repository), *arguments],
             check=True,
         )
+
+
+@unittest.skipUnless(
+    RUN_COOKIECUTTER_PARITY
+    and COPIER
+    and COOKIECUTTER
+    and COOKIECUTTER_TEMPLATE.is_dir(),
+    "set RUN_COOKIECUTTER_PARITY=1 with both template engines available",
+)
+class CookiecutterParityTests(unittest.TestCase):
+    def test_rendered_projects_are_equivalent(self) -> None:
+        cases = (
+            ("default", "My New Project", "my-new-project", False, True, False, ()),
+            ("minimal", "Minimal Project", "minimal-project", False, False, False, ()),
+            ("cabinet", "Cabinet Project", "cabinet-project", True, True, False, ()),
+            (
+                "multilingual",
+                "Multilingual Project",
+                "multilingual-project",
+                False,
+                True,
+                True,
+                ("it", "en"),
+            ),
+            (
+                "full",
+                "Full Project",
+                "full-project",
+                True,
+                True,
+                True,
+                ("it", "en", "fr"),
+            ),
+        )
+
+        for name, project_name, repo_name, cabinet, sorl, translations, languages in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cookie_project, cookie_output = self.render_cookiecutter(
+                    root,
+                    project_name,
+                    repo_name,
+                    cabinet,
+                    sorl,
+                    translations,
+                    languages,
+                )
+                copier_project, copier_output = self.render_copier(
+                    root,
+                    project_name,
+                    repo_name,
+                    cabinet,
+                    sorl,
+                    translations,
+                    languages,
+                )
+                self.assert_project_files_equal(cookie_project, copier_project)
+                self.assert_readmes_equivalent(cookie_project, copier_project)
+                self.assert_env_equivalent(
+                    cookie_project / repo_name / ".env",
+                    copier_project / repo_name / ".env",
+                    cookie_output + copier_output,
+                )
+
+    def render_cookiecutter(
+        self,
+        root: Path,
+        project_name: str,
+        repo_name: str,
+        cabinet: bool,
+        sorl: bool,
+        translations: bool,
+        languages: tuple[str, ...],
+    ) -> tuple[Path, str]:
+        output = root / "cookiecutter-output"
+        replay = root / "cookiecutter-replay"
+        cache = root / "cookiecutter-cache"
+        output.mkdir()
+        replay.mkdir()
+        cache.mkdir()
+        config = root / "cookiecutter-config.yml"
+        config.write_text(
+            f"cookiecutters_dir: {cache}\nreplay_dir: {replay}\n",
+            encoding="utf-8",
+        )
+        language_csv = ",".join(languages) if languages else "it,en"
+        result = subprocess.run(
+            [
+                str(COOKIECUTTER),
+                "--no-input",
+                "--config-file",
+                str(config),
+                "--output-dir",
+                str(output),
+                str(COOKIECUTTER_TEMPLATE),
+                f"project_name={project_name}",
+                f"repo_name={repo_name}",
+                f"use_cabinet={'y' if cabinet else 'n'}",
+                f"use_sorl_thumbnail={'y' if sorl else 'n'}",
+                f"use_translations={'y' if translations else 'n'}",
+                f"languages={language_csv}",
+                "default_language=it",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return output / repo_name, result.stdout + result.stderr
+
+    def render_copier(
+        self,
+        root: Path,
+        project_name: str,
+        repo_name: str,
+        cabinet: bool,
+        sorl: bool,
+        translations: bool,
+        languages: tuple[str, ...],
+    ) -> tuple[Path, str]:
+        output = root / "copier-output"
+        language_yaml = "[" + ",".join(languages or ("it", "en")) + "]"
+        result = subprocess.run(
+            [
+                str(COPIER),
+                "copy",
+                "--trust",
+                "--defaults",
+                "--quiet",
+                "--vcs-ref=HEAD",
+                "--data",
+                f"project_name={project_name}",
+                "--data",
+                f"repo_name={repo_name}",
+                "--data",
+                f"use_cabinet={str(cabinet).lower()}",
+                "--data",
+                f"use_sorl_thumbnail={str(sorl).lower()}",
+                "--data",
+                f"use_translations={str(translations).lower()}",
+                "--data",
+                f"languages={language_yaml}",
+                "--data",
+                "default_language=it",
+                str(ROOT),
+                str(output),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return output, result.stdout + result.stderr
+
+    def assert_project_files_equal(self, cookie: Path, copier: Path) -> None:
+        cookie_files = self.comparable_files(cookie)
+        copier_files = self.comparable_files(copier)
+        self.assertEqual(cookie_files, copier_files)
+        for relative_path in cookie_files:
+            self.assertEqual(
+                (cookie / relative_path).read_bytes(),
+                (copier / relative_path).read_bytes(),
+                relative_path,
+            )
+
+    def comparable_files(self, root: Path) -> set[Path]:
+        ignored_names = {".copier-answers.yml", ".env", "README.md"}
+        return {
+            path.relative_to(root)
+            for path in root.rglob("*")
+            if path.is_file()
+            and path.name not in ignored_names
+            and path.suffix != ".pyc"
+            and "__pycache__" not in path.parts
+        }
+
+    def assert_readmes_equivalent(self, cookie: Path, copier: Path) -> None:
+        cookie_readme = (cookie / "README.md").read_text()
+        copier_lines = (copier / "README.md").read_text().splitlines(keepends=True)
+        copier_readme = "".join(
+            line for line in copier_lines if "Made%20with-Copier" not in line
+        ).replace("Copier generation", "Cookiecutter generation")
+        self.assertEqual(cookie_readme, copier_readme)
+
+    def assert_env_equivalent(
+        self,
+        cookie_env: Path,
+        copier_env: Path,
+        command_output: str,
+    ) -> None:
+        cookie_values = self.env_values(cookie_env)
+        copier_values = self.env_values(copier_env)
+        self.assertEqual(cookie_values.keys(), copier_values.keys())
+        self.assertEqual(stat.S_IMODE(cookie_env.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(copier_env.stat().st_mode), 0o600)
+        for name in ("SECRET_KEY", "DB_PASSWORD", "POSTGRES_PASSWORD"):
+            self.assertNotIn(cookie_values[name][1:-1], command_output)
+            self.assertNotIn(copier_values[name][1:-1], command_output)
+
+    def env_values(self, env_path: Path) -> dict[str, str]:
+        values = dict(
+            line.split("=", 1)
+            for line in env_path.read_text(encoding="utf-8").splitlines()
+        )
+        for value in values.values():
+            self.assertTrue(value.startswith('"') and value.endswith('"'))
+        return values
 
 
 if __name__ == "__main__":
