@@ -69,10 +69,18 @@ more specific `[%% ... %%]` for control blocks so Django's `{% ... %}` and
 
 Codecov reports coverage for the executable template tasks under `tasks/`.
 Mypy checks `tasks/` and the test harness under `tests/`; generation tests also
-compile-check the rendered Python sources.
+verify the five supported configurations: default, minimal, cabinet,
+multilingual and full. For every configuration, CI validates the rendered
+Python sources and Docker Compose configuration, runs `make bootstrap`, and
+executes the generated Django test suite against an isolated PostgreSQL
+service.
 
 Run the test suite with an explicit Copier executable if it is not on `PATH`:
 
 ```bash
 COPIER_BIN="$HOME/.local/bin/copier" python -m unittest -v
 ```
+
+The local unit suite performs rendering and update checks. The Docker
+bootstrap matrix runs in GitHub Actions and requires Docker when reproduced
+locally.

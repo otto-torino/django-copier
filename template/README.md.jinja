@@ -12,6 +12,7 @@
 - [Git](https://git-scm.com/)
 - [Docker Engine](https://docs.docker.com/engine/install/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (the `docker compose` plugin)
+- [Copier](https://copier.readthedocs.io/) (only for template updates)
 
 ## Local development
 
@@ -112,6 +113,22 @@ For example:
 ```bash
 make manage -- makemigrations pages
 ```
+
+## Template updates
+
+This project stores its template source, version and answers in
+`.copier-answers.yml`. Before applying a template update, install Copier in an
+isolated environment and commit or stash all local work:
+
+```bash
+pipx install copier
+git status --short
+copier update --trust
+```
+
+Review the resulting changes and resolve any reported conflicts before
+committing the update. Copier does not recreate or overwrite the ignored local
+`[[ repo_name ]]/.env` file during updates.
 
 ## Page access policy
 
