@@ -1,5 +1,10 @@
 # Django Copier
 
+[![CI](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml/badge.svg)](https://github.com/otto-torino/django-copier/actions/workflows/ci.yml)
+![Copier 9.3+](https://img.shields.io/badge/Copier-9.3%2B-blue)
+![Django 6](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+
 A Copier template for a Docker-based Django project, with a ready-to-use local
 environment and automated staging and production deployments through GitHub
 Actions.
@@ -67,4 +72,3 @@ COPIER_BIN="$HOME/.local/bin/copier" python -m unittest -v
 ```
 
 See `doc.md` for the conversion rationale and the release checklist.
-
