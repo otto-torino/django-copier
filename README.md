@@ -32,7 +32,7 @@ copier copy --trust --vcs-ref HEAD . ../my-project
 From the published repository:
 
 ```bash
-copier copy --trust <TEMPLATE_URL> my-project
+copier copy --trust gh:otto-torino/django-copier my-project
 ```
 
 `--trust` is required because the template runs reviewed Python tasks. They
