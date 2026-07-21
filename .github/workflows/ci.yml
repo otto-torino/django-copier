@@ -7,16 +7,21 @@ on:
 jobs:
   test-template:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: django-copier
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: django-copier
       - name: Check out the legacy template for parity tests
         uses: actions/checkout@v4
         with:
           repository: otto-torino/django-cookiecutter
-          path: .parity/django-cookiecutter
+          path: django-cookiecutter
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -26,7 +31,7 @@ jobs:
         run: mypy tasks tests
       - name: Test template
         env:
-          COOKIECUTTER_TEMPLATE: ${{ github.workspace }}/.parity/django-cookiecutter
+          COOKIECUTTER_TEMPLATE: ${{ github.workspace }}/django-cookiecutter
           RUN_COOKIECUTTER_PARITY: "1"
         run: |
           coverage run --source=tasks -m unittest -v
@@ -36,5 +41,5 @@ jobs:
         with:
           disable_search: true
           fail_ci_if_error: true
-          files: ./coverage.xml
+          files: ./django-copier/coverage.xml
           use_oidc: true
