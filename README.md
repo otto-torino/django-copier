@@ -70,5 +70,3 @@ Run the test suite with an explicit Copier executable if it is not on `PATH`:
 ```bash
 COPIER_BIN="$HOME/.local/bin/copier" python -m unittest -v
 ```
-
-See `doc.md` for the conversion rationale and the release checklist.
