@@ -14,15 +14,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: django-copier
       - name: Check out the legacy template for parity tests
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: otto-torino/django-cookiecutter
           path: django-cookiecutter
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install test dependencies
@@ -43,3 +43,42 @@ jobs:
           fail_ci_if_error: true
           files: ./django-copier/coverage.xml
           use_oidc: true
+
+  test-generated-project:
+    needs: test-template
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Copier
+        run: python -m pip install "copier>=9.3,<10"
+      - name: Generate the full project
+        run: |
+          copier copy --trust --defaults --vcs-ref=HEAD \
+            --data project_name="Generated CI Project" \
+            --data repo_name=generated-ci-project \
+            --data use_cabinet=true \
+            --data use_sorl_thumbnail=true \
+            --data use_translations=true \
+            --data languages='[it,en,fr]' \
+            --data default_language=it \
+            . "${{ runner.temp }}/generated-ci-project"
+      - name: Bootstrap the generated project
+        working-directory: ${{ runner.temp }}/generated-ci-project
+        run: make bootstrap
+      - name: Run generated Django tests
+        working-directory: ${{ runner.temp }}/generated-ci-project
+        run: make test
+      - name: Show service logs after failure
+        if: failure()
+        working-directory: ${{ runner.temp }}/generated-ci-project
+        run: docker compose logs --no-color
+      - name: Remove generated services and volumes
+        if: always()
+        working-directory: ${{ runner.temp }}/generated-ci-project
+        run: make clean
