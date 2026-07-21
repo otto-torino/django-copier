@@ -22,36 +22,36 @@ def ai_models_default():
 class Preferences(PreferencesUtilsModel):
     ai_models = models.JSONField(_("ai models"), default=ai_models_default)
     hide_archived = models.BooleanField(
-        verbose_name=_("nascondi archiviati"), default=False
+        verbose_name=_("hide archived"), default=False
     )
     robots = models.TextField(_("robots"), default="", blank=True)
 
     site_title = models.CharField(
-        _("titolo sito"),
+        _("site title"),
         max_length=100,
         default="[[ project_name ]]",
         blank=True,
     )
 
     meta_title = models.CharField(
-        _("titolo meta"),
+        _("meta title"),
         max_length=100,
         default="[[ project_name ]]",
         blank=True,
     )
     meta_description = models.CharField(
-        _("descrizione meta"),
+        _("meta description"),
         max_length=300,
         default="[[ project_description ]]",
         blank=True,
     )
     meta_image = models.ImageField(
-        _("immagine meta"), upload_to="preferences/", blank=True, null=True
+        _("meta image"), upload_to="preferences/", blank=True, null=True
     )
     meta_keywords = models.CharField(
-        _("parole chiave meta"), max_length=255, blank=True, null=True
+        _("meta keywords"), max_length=255, blank=True, null=True
     )
 
     class Meta:
-        verbose_name = _("preferenze")
-        verbose_name_plural = _("preferenze")
+        verbose_name = _("preference")
+        verbose_name_plural = _("preferences")

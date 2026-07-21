@@ -11,7 +11,7 @@ from tree_queries.forms import TreeNodeChoiceField
 
 
 class UploadForm(forms.Form):
-    folder = TreeNodeChoiceField(label=_("cartella"), queryset=Folder.objects.all())
+    folder = TreeNodeChoiceField(label=_("folder"), queryset=Folder.objects.all())
     file = forms.FileField(label=_("file"))
 
 

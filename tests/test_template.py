@@ -33,6 +33,23 @@ COOKIECUTTER_TEMPLATE = Path(
 )
 DOCKER = shutil.which("docker")
 RUN_COOKIECUTTER_PARITY = os.environ.get("RUN_COOKIECUTTER_PARITY") == "1"
+ENGLISH_NORMALIZED_FILES = {
+    Path("cabinet/base.py"),
+    Path("cabinet/base_admin.py"),
+    Path("cabinet/fields.py"),
+    Path("cabinet/models.py"),
+    Path("cabinet/templates/admin/cabinet/file/change_list.html"),
+    Path("cabinet/templates/cabinet/page_content_multi_attachment.html"),
+    Path("core/admin.py"),
+    Path("core/models.py"),
+    Path("pages/admin.py"),
+    Path("pages/apps.py"),
+    Path("pages/models.py"),
+    Path("pages/templates/admin/pages/change_content.html"),
+    Path("pages/templates/admin/pages/page_content_change_form.html"),
+    Path("pages/templates/pages/default.html"),
+    Path("tagall/tests.py"),
+}
 
 
 class AnswerValidationTests(unittest.TestCase):
@@ -715,6 +732,9 @@ class CookiecutterParityTests(unittest.TestCase):
             and path.name not in ignored_names
             and path.suffix != ".pyc"
             and "__pycache__" not in path.parts
+            and "locale" not in path.parts
+            and Path(*path.relative_to(root).parts[1:])
+            not in ENGLISH_NORMALIZED_FILES
         }
 
     def assert_readmes_equivalent(self, cookie: Path, copier: Path) -> None:

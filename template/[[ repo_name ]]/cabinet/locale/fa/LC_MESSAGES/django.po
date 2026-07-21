@@ -35,31 +35,23 @@ msgstr "ایجاد شده در %(created_at)s و به روز شده در %(updat
 msgid "Cabinet media library"
 msgstr "کتابخانه ی رسانه"
 
-#: base.py:49 base.py:72
-msgid "immagine"
-msgstr ""
-
 #: base.py:58
-msgid "coordinate soggetto"
+msgid "subject coordinates"
 msgstr ""
 
 #: base.py:61
-msgid "larghezza"
+msgid "width"
 msgstr ""
 
 #: base.py:64
-msgid "altezza"
+msgid "height"
 msgstr ""
 
 #: base.py:67
 #, fuzzy
 #| msgid "alternative text"
-msgid "testo alternativo"
+msgid "alternative text"
 msgstr "متن جایگزین"
-
-#: base.py:73
-msgid "immagini"
-msgstr ""
 
 #: base.py:86
 msgid "Image"
@@ -155,23 +147,9 @@ msgstr "بارگذاری شده در"
 msgid "folder"
 msgstr "پوشه"
 
-#: base.py:226 templates/admin/cabinet/file/change_list.html:63
-#, fuzzy
-#| msgid "file"
-msgid "nome file"
-msgstr "پرونده"
-
-#: base.py:227
-msgid "dimensioni"
-msgstr ""
-
 #: base.py:233 base_admin.py:101
 msgid "files"
 msgstr "پرونده ها"
-
-#: base.py:258
-msgid "Per favore compila un solo campo di tipo file!"
-msgstr ""
 
 #: base_admin.py:60
 msgid "file type"
@@ -226,16 +204,12 @@ msgid "Root folder"
 msgstr "پوشه ریشه"
 
 #: base_admin.py:517
-msgid "Principale"
+msgid "Main"
 msgstr ""
 
 #: base_admin.py:543
 msgid "Advanced"
 msgstr "پیشرفته"
-
-#: fields.py:15
-msgid "cartella"
-msgstr ""
 
 #: models.py:41
 msgid "name"
@@ -295,15 +269,6 @@ msgstr "ذخیره"
 #~ msgid "image"
 #~ msgstr "تصویر"
 
-#~ msgid "image width"
-#~ msgstr "عرض تصویر"
-
-#~ msgid "image height"
-#~ msgstr "ارتفاع تصویر"
-
-#~ msgid "primary point of interest"
-#~ msgstr "نقطه اصلی مورد علاقه"
-
 #~ msgid "images"
 #~ msgstr "تصاویر"
 
@@ -312,6 +277,15 @@ msgstr "ذخیره"
 
 #~ msgid "Please fill in exactly one file field!"
 #~ msgstr "لطفا دقیقاً یک فیلد فایل را پر کنید!"
+
+#~ msgid "image width"
+#~ msgstr "عرض تصویر"
+
+#~ msgid "image height"
+#~ msgstr "ارتفاع تصویر"
+
+#~ msgid "primary point of interest"
+#~ msgstr "نقطه اصلی مورد علاقه"
 
 #, python-format
 #~ msgid "Cannot delete %(name)s because of related objects (%(related)s)"

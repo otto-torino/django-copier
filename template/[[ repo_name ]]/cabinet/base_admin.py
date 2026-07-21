@@ -519,7 +519,7 @@ class FileAdminBase(FolderAdminMixin):
             return True
 
         fieldsets = [
-            (_("Principale"), {
+            (_("Main"), {
                 "fields": [field for field in self.top_fields if exists(field)],
                 "classes": (
                     "baton-tabs-init",

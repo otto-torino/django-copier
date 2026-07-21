@@ -49,9 +49,9 @@ class Page(TimeStampedModel, Searchable):
     ARCHIVED = 3
 
     STATUS_CHOICES = (
-        (DRAFT, _("bozza")),
-        (PUBLISHED, _("pubblicato")),
-        (ARCHIVED, _("archiviato")),
+        (DRAFT, _("draft")),
+        (PUBLISHED, _("published")),
+        (ARCHIVED, _("archived")),
     )
 
     HIGH_RELEVANCE = 1
@@ -59,9 +59,9 @@ class Page(TimeStampedModel, Searchable):
     LOW_RELEVANCE = 3
 
     RELEVANCE_CHOICES = (
-        (HIGH_RELEVANCE, _("alta")),
-        (MEDIUM_RELEVANCE, _("media")),
-        (LOW_RELEVANCE, _("bassa")),
+        (HIGH_RELEVANCE, _("high")),
+        (MEDIUM_RELEVANCE, _("medium")),
+        (LOW_RELEVANCE, _("low")),
     )
 
     parent = models.ForeignKey(
@@ -76,7 +76,7 @@ class Page(TimeStampedModel, Searchable):
     url = models.CharField(_("URL"), max_length=100, db_index=True)
     title = models.CharField(_("title"), max_length=200)
     image = BatonAiImageField(
-        verbose_name=_("immagine header"),
+        verbose_name=_("header image"),
         upload_to="pages/images/",
         subject_location_field="subject_location",
         alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
@@ -135,7 +135,7 @@ class Page(TimeStampedModel, Searchable):
     sites = models.ManyToManyField(Site, verbose_name=_("sites"))
     status = models.IntegerField(choices=STATUS_CHOICES, default=DRAFT)
     relevance = models.IntegerField(
-        verbose_name=_("rilevanza"),
+        verbose_name=_("relevance"),
         help_text=_("priority level for searches"),
         choices=RELEVANCE_CHOICES,
         default=2,
@@ -681,7 +681,7 @@ class PageContentBoxItem(models.Model):
         null=True,
     )
     icon_text = models.CharField(
-        verbose_name=_("testo icona"), max_length=100, blank=True, null=True
+        verbose_name=_("icon text"), max_length=100, blank=True, null=True
     )
     position = models.IntegerField(_("order"), default=0)
     text_color = models.CharField(

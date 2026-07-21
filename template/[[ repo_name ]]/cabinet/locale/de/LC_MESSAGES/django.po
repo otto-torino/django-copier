@@ -34,31 +34,23 @@ msgstr "Erstellt %(created_at)s, letzte Änderung %(updated_at)s"
 msgid "Cabinet media library"
 msgstr "Cabinet Medienbibliothek"
 
-#: base.py:49 base.py:72
-msgid "immagine"
-msgstr ""
-
 #: base.py:58
-msgid "coordinate soggetto"
+msgid "subject coordinates"
 msgstr ""
 
 #: base.py:61
-msgid "larghezza"
+msgid "width"
 msgstr ""
 
 #: base.py:64
-msgid "altezza"
+msgid "height"
 msgstr ""
 
 #: base.py:67
 #, fuzzy
 #| msgid "alternative text"
-msgid "testo alternativo"
+msgid "alternative text"
 msgstr "Alternativer Text"
-
-#: base.py:73
-msgid "immagini"
-msgstr ""
 
 #: base.py:86
 msgid "Image"
@@ -154,23 +146,9 @@ msgstr "aktualisiert um"
 msgid "folder"
 msgstr "Ordner"
 
-#: base.py:226 templates/admin/cabinet/file/change_list.html:63
-#, fuzzy
-#| msgid "file"
-msgid "nome file"
-msgstr "Datei"
-
-#: base.py:227
-msgid "dimensioni"
-msgstr ""
-
 #: base.py:233 base_admin.py:101
 msgid "files"
 msgstr "Dateien"
-
-#: base.py:258
-msgid "Per favore compila un solo campo di tipo file!"
-msgstr ""
 
 #: base_admin.py:60
 msgid "file type"
@@ -225,16 +203,12 @@ msgid "Root folder"
 msgstr "Oberster Ordner"
 
 #: base_admin.py:517
-msgid "Principale"
+msgid "Main"
 msgstr ""
 
 #: base_admin.py:543
 msgid "Advanced"
 msgstr "Fortgeschritten"
-
-#: fields.py:15
-msgid "cartella"
-msgstr ""
 
 #: models.py:41
 msgid "name"
@@ -294,15 +268,6 @@ msgstr "Sichern"
 #~ msgid "image"
 #~ msgstr "Bild"
 
-#~ msgid "image width"
-#~ msgstr "Bildbreite"
-
-#~ msgid "image height"
-#~ msgstr "Bildhöhe"
-
-#~ msgid "primary point of interest"
-#~ msgstr "Fokuspunkt"
-
 #~ msgid "images"
 #~ msgstr "Bilder"
 
@@ -311,6 +276,15 @@ msgstr "Sichern"
 
 #~ msgid "Please fill in exactly one file field!"
 #~ msgstr "Bitte genau ein Dateifeld ausfüllen!"
+
+#~ msgid "image width"
+#~ msgstr "Bildbreite"
+
+#~ msgid "image height"
+#~ msgstr "Bildhöhe"
+
+#~ msgid "primary point of interest"
+#~ msgstr "Fokuspunkt"
 
 #, python-format
 #~ msgid "Cannot delete %(name)s because of related objects (%(related)s)"

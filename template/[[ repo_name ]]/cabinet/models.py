@@ -126,15 +126,15 @@ try:
             blank=True,
             null=True,
         )
-        description = models.TextField(_("descrizione"), blank=True, null=True)
+        description = models.TextField(_("description"), blank=True, null=True)
 
-        position = models.IntegerField(_("ordinamento"), default=0)
-        name = models.CharField(_("nome"), max_length=200)
+        position = models.IntegerField(_("ordering"), default=0)
+        name = models.CharField(_("name"), max_length=200)
         page_content = models.ForeignKey(
             PageContentMultiAttachment,
             related_name="files",
             on_delete=models.CASCADE,
-            verbose_name=_("contenuto"),
+            verbose_name=_("content"),
         )
 
         class Meta:  # pyright: ignore

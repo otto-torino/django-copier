@@ -44,61 +44,61 @@ _tasks:
 project_name:
   type: str
   default: My New Project
-  help: Nome leggibile del progetto
+  help: Human-readable project name
 
 project_description:
   type: str
   default: My New Project description
-  help: Breve descrizione usata nel README
+  help: Short description used in the README
 
 repo_name:
   type: str
   default: "[[ project_name | lower | replace(' ', '-') ]]"
-  help: Slug del repository e nome della directory applicativa
+  help: Repository slug and application directory name
 
 use_cabinet:
   type: bool
   default: false
-  help: Include l'applicazione cabinet
+  help: Include the cabinet application
 
 use_sorl_thumbnail:
   type: bool
   default: true
-  help: Usa sorl-thumbnail invece del fallback locale
+  help: Use sorl-thumbnail instead of the local fallback
 
 use_translations:
   type: bool
   default: false
-  help: Abilita django-modeltranslation e le URL localizzate
+  help: Enable django-modeltranslation and localized URLs
 
 languages:
   type: yaml
   default: [it, en]
   when: "[[ use_translations ]]"
-  help: Elenco YAML di almeno due codici lingua Django
+  help: YAML list containing at least two Django language codes
 
 default_language:
   type: str
   default: it
   when: "[[ use_translations ]]"
-  help: Lingua predefinita, inclusa nell'elenco languages
+  help: Default language, included in the languages list
 
 timezone:
   type: str
   default: Europe/Rome
-  help: Timezone usata da Django e dalle immagini Docker
+  help: Timezone used by Django and the Docker images
 
 author:
   type: str
   default: otto
-  help: Organizzazione o utente GitHub
+  help: GitHub organization or username
 
 email:
   type: str
   default: logs@otto.srl
-  help: Email applicativa predefinita
+  help: Default application email address
 
 db_user:
   type: str
   default: "[[ repo_name ]]"
-  help: Utente PostgreSQL locale
+  help: Local PostgreSQL user

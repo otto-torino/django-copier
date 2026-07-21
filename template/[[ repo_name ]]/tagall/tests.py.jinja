@@ -17,21 +17,21 @@ class TagTests(TestCase):
         self.request_factory = RequestFactory()
 
     def test_save_generates_unique_slugs(self):
-        first = Tag.objects.create(name="Medioevo")
-        second = Tag.objects.create(name="Medioevo!")
+        first = Tag.objects.create(name="Middle Ages")
+        second = Tag.objects.create(name="Middle Ages!")
 
-        self.assertEqual(first.slug, "medioevo")
-        self.assertEqual(second.slug, "medioevo-2")
+        self.assertEqual(first.slug, "middle-ages")
+        self.assertEqual(second.slug, "middle-ages-2")
 
     def test_save_includes_generated_slug_with_update_fields(self):
-        tag = Tag.objects.create(name="Medioevo")
+        tag = Tag.objects.create(name="Middle Ages")
         Tag.objects.filter(pk=tag.pk).update(slug="")
         tag.refresh_from_db()
 
         tag.save(update_fields=["name"])
 
         tag.refresh_from_db()
-        self.assertEqual(tag.slug, "medioevo")
+        self.assertEqual(tag.slug, "middle-ages")
 
     def test_baton_create_tags_url_uses_local_view(self):
         url = [%% if use_translations %%]"/[[ default_language ]]/baton/create-tags/"[%% else %%]"/baton/create-tags/"[%% endif %%]
@@ -53,7 +53,7 @@ class TagTests(TestCase):
                     "appLabel": "pages",
                     "modelName": "page",
                     "field": "tags",
-                    "labels": ["Medioevo"],
+                    "labels": ["Middle Ages"],
                 }
             ),
             content_type="application/json",
@@ -63,9 +63,9 @@ class TagTests(TestCase):
         response = TagallCreateTagsView.as_view()(request)
 
         self.assertEqual(response.status_code, 200)
-        tag = Tag.objects.get(name="Medioevo")
-        self.assertEqual(tag.slug, "medioevo")
-        [%% if use_translations %%]self.assertEqual(tag.name_[[ default_language ]], "Medioevo")[%% endif %%]
+        tag = Tag.objects.get(name="Middle Ages")
+        self.assertEqual(tag.slug, "middle-ages")
+        [%% if use_translations %%]self.assertEqual(tag.name_[[ default_language ]], "Middle Ages")[%% endif %%]
 
     def test_page_admin_configures_baton_tag_suggestions(self):
         page_admin = admin.site._registry[Page]
@@ -76,8 +76,8 @@ class TagTests(TestCase):
         )
 
     def test_admin_used_by_shows_related_objects(self):
-        tag = Tag.objects.create(name="Medioevo")
-        page = Page.objects.create(url="/medioevo/", title="Medioevo")
+        tag = Tag.objects.create(name="Middle Ages")
+        page = Page.objects.create(url="/middle-ages/", title="Middle Ages")
         page.tags.add(tag)
 
         tag_admin = admin.site._registry[Tag]
@@ -92,8 +92,8 @@ class TagTests(TestCase):
             password="password",
         )
         target = Tag.objects.create(name="History")
-        source = Tag.objects.create(name="Medioevo")
-        page = Page.objects.create(url="/medioevo/", title="Medioevo")
+        source = Tag.objects.create(name="Middle Ages")
+        page = Page.objects.create(url="/middle-ages/", title="Middle Ages")
         page.tags.add(source)
         self.client.force_login(user)
 

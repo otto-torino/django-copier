@@ -46,7 +46,7 @@ def upload_is_image(data):
 
 class ImageMixin(models.Model):
     image_file = SubjectImageField(
-        _("immagine"),
+        _("image"),
         upload_to=UPLOAD_TO,
         width_field="image_width",
         height_field="image_height",
@@ -55,22 +55,22 @@ class ImageMixin(models.Model):
         subject_location_field="subject_location"
     )
     subject_location = models.CharField(
-        _("coordinate soggetto"), max_length=7, default="50,50"
+        _("subject coordinates"), max_length=7, default="50,50"
     )
     image_width = models.PositiveIntegerField(
-        _("larghezza"), blank=True, null=True, editable=False
+        _("width"), blank=True, null=True, editable=False
     )
     image_height = models.PositiveIntegerField(
-        _("altezza"), blank=True, null=True, editable=False
+        _("height"), blank=True, null=True, editable=False
     )
     image_alt_text = models.CharField(
-        _("testo alternativo"), max_length=1000, blank=True
+        _("alternative text"), max_length=1000, blank=True
     )
 
     class Meta:
         abstract = True
-        verbose_name = _("immagine")
-        verbose_name_plural = _("immagini")
+        verbose_name = _("image")
+        verbose_name_plural = _("images")
 
     def accept_file(self, value):
         if upload_is_image(value):
@@ -223,8 +223,8 @@ class AbstractFile(TimestampsMixin):
         related_name="files",
     )
 
-    file_name = models.CharField(_("nome file"), max_length=1000)
-    file_size = models.PositiveIntegerField(_("dimensioni"))
+    file_name = models.CharField(_("file name"), max_length=1000)
+    file_size = models.PositiveIntegerField(_("file size"))
 
     class Meta:
         abstract = True
@@ -255,7 +255,7 @@ class AbstractFile(TimestampsMixin):
 
     def clean(self):
         if len(list(self.__files())) != 1:
-            raise ValidationError(_("Per favore compila un solo campo di tipo file!"))
+            raise ValidationError(_("Please fill in exactly one file field!"))
 
     def save(self, *args, **kwargs):
         f_obj = self.file

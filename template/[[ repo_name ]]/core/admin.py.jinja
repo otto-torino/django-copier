@@ -51,7 +51,7 @@ class PreferencesAdmin(PreferencesUtilsAdmin):
     list_display = ('id', )
 
     fieldsets = (
-        (_('Principale'), {
+        (_('Main'), {
             'fields': ("site_title", "ai_models", "hide_archived", "robots",),
             "classes": ("baton-tabs-init", "baton-tab-fs-meta", ),
         }),

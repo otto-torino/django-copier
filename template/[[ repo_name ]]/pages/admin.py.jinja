@@ -125,7 +125,7 @@ class PageAdmin([%% if use_translations %%]TranslationAdmin, [%% endif %%]Archiv
             current_app=self.admin_site.name,
         )
         return mark_safe(
-            '<div style=""> <a class="btn btn-secondary btn-sm" href="%s"><i class="material-symbols-outlined me-2">edit</i> Modifica</a> </div>'
+            '<div style=""> <a class="btn btn-secondary btn-sm" href="%s"><i class="material-symbols-outlined me-2">edit</i> Edit</a> </div>'
             % edit_contents_url
         )
 
