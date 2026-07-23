@@ -111,12 +111,27 @@ jobs:
 
       - name: Smoke test
         run: |
-          url="http://127.0.0.1:$APP_PORT/"
+          # i18n_patterns prefixes every route with the language code, so "/"
+          # answers 302 -> "/[[ default_language ]]/". Request the final path
+          # directly to assert a real 200 instead of merely observing the
+          # locale redirect.
+          url="http://127.0.0.1:$APP_PORT/[[ default_language + '/' if use_translations else '' ]]"
           response_file="$RUNNER_TEMP/smoke-test-response.txt"
+
+          # The container serves plain HTTP on the loopback and normally sits
+          # behind the host's Nginx. Hitting it directly bypasses Nginx, so we
+          # must reproduce the two headers Nginx supplies, otherwise Django
+          # rejects the request: a matching Host (ALLOWED_HOSTS is the real
+          # domain, not 127.0.0.1) and X-Forwarded-Proto: https (without it
+          # SECURE_SSL_REDIRECT answers 301 to https and the app is never
+          # actually rendered).
+          host="${ALLOWED_HOSTS%%,*}"
 
           if http_code=$(curl --silent --show-error \
             --retry 10 --retry-delay 3 --retry-all-errors \
             --connect-timeout 5 --max-time 10 \
+            --header "Host: $host" \
+            --header "X-Forwarded-Proto: https" \
             --output "$response_file" \
             --write-out "%{http_code}" \
             "$url"); then
@@ -125,9 +140,11 @@ jobs:
             curl_status=$?
           fi
 
+          # The direct path renders without redirects, so require a real 2xx;
+          # a 3xx now signals an unexpected redirect worth failing on.
           case "$http_code" in
-            2*|3*) http_success=1 ;;
-            *)     http_success=0 ;;
+            2*) http_success=1 ;;
+            *)  http_success=0 ;;
           esac
 
           if [ "$curl_status" -ne 0 ] || [ "$http_success" -ne 1 ]; then
@@ -174,10 +191,13 @@ jobs:
           docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up \
             -d --no-build --force-recreate --remove-orphans \
             --wait --wait-timeout 180
-          rollback_url="http://127.0.0.1:$APP_PORT/"
+          rollback_url="http://127.0.0.1:$APP_PORT/[[ default_language + '/' if use_translations else '' ]]"
+          host="${ALLOWED_HOSTS%%,*}"
           if ! curl --fail --show-error --silent \
             --retry 10 --retry-delay 3 --retry-all-errors \
             --connect-timeout 5 --max-time 10 \
+            --header "Host: $host" \
+            --header "X-Forwarded-Proto: https" \
             "$rollback_url" >/dev/null; then
             echo "::error title=Rollback smoke test failed::$rollback_url is not responding successfully"
             exit 1
