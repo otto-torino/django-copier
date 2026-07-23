@@ -187,9 +187,12 @@ make lint
 
 CI runs both commands for every generated-project variant. Direct and
 transitive Python dependencies are pinned to exact versions, and CI audits the
-production set for known vulnerabilities. Package artifacts are not yet locked
-by hash; environments that require artifact-level reproducibility should
-generate and review hash-locked requirements for their target platforms.
+production set for known vulnerabilities. Every Python requirement also has
+reviewed SHA-256 hashes and enables pip's all-or-nothing hash-checking mode.
+The lock covers the Python 3.12 Linux containers used for local development and
+deployment; dependency updates must update the version and its hashes together.
+Dependabot opens grouped Python updates, which must pass the complete generated
+project and production-image CI before merging.
 
 ## Deployments
 

@@ -534,7 +534,7 @@ class RenderingTests(unittest.TestCase):
 
             app = destination / "upgrade-project"
             self.assertIn("Local upgrade note.", readme.read_text())
-            self.assertIn("Django==6.0.7", (app / "requirements/common.txt").read_text())
+            self.assertIn("django==6.0.7", (app / "requirements/common.txt").read_text())
             self.assertIn(
                 "POSTGRES_SEARCH_CONFIGS",
                 (app / "search_app/views.py").read_text(),
@@ -658,12 +658,16 @@ class RenderingTests(unittest.TestCase):
 
     def assert_requirements_are_pinned(self, app: Path) -> None:
         requirement_pattern = re.compile(
-            r"^[A-Za-z0-9][A-Za-z0-9._-]*==[A-Za-z0-9][A-Za-z0-9._+-]*$"
+            r"^[A-Za-z0-9][A-Za-z0-9._-]*==[A-Za-z0-9][A-Za-z0-9._+-]*"
+            r"(?:\s+--hash=sha256:[0-9a-f]{64})+$"
         )
         for requirements_file in (app / "requirements").glob("*.txt"):
-            for raw_line in requirements_file.read_text().splitlines():
+            contents = requirements_file.read_text()
+            self.assertIn("--require-hashes", contents, requirements_file)
+            logical_lines = contents.replace("\\\n", " ").splitlines()
+            for raw_line in logical_lines:
                 line = raw_line.strip()
-                if not line or line.startswith(("#", "-r ")):
+                if not line or line.startswith(("#", "-r ", "--require-hashes")):
                     continue
                 self.assertRegex(line, requirement_pattern, requirements_file)
 

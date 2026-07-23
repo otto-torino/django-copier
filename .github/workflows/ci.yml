@@ -27,7 +27,8 @@ jobs:
         run: |
           copier copy --trust --defaults --skip-tasks --vcs-ref=HEAD \
             . "${RUNNER_TEMP}/audit-project"
-          pip-audit --progress-spinner=off \
+          pip-audit --progress-spinner=off --require-hashes \
+            --no-deps --disable-pip \
             -r "${RUNNER_TEMP}/audit-project/my-new-project/requirements/production.txt"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
