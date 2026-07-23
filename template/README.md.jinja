@@ -224,13 +224,15 @@ In both environments:
 - Nginx starts only after the combined PostgreSQL/Gunicorn healthcheck passes;
 - the host's Nginx instance proxies the public domain to that loopback port;
 - Certbot on the host manages TLS;
-- workflows keep the ten most recent PostgreSQL backups under
-  `~/backups/[[ repo_name ]]/<environment>/` on the runner;
+- workflows keep seven days of daily PostgreSQL backups and the latest 12
+  monthly snapshots under `~/backups/[[ repo_name ]]/<environment>/` on the
+  runner;
 - every new database dump is validated with `pg_restore --list` before it
   replaces its temporary file;
 - every dump and checksum is copied to Swiss Backup S3 with rclone and read
   back to verify its SHA-256 digest;
-- production also runs a daily backup at 02:17 UTC, independently of deploys;
+- staging and production also run a daily backup at 02:17 UTC, independently
+  of deploys;
 - deployments wait for container health, run an HTTP smoke test and restore the
   previous application image on failure;
 - the workflow creates `.env.deploy` from GitHub configuration and removes it
@@ -384,24 +386,28 @@ certbot --nginx -d example.com
 ### Database backups and restore
 
 Before every update of an existing environment, its workflow creates a
-gzip-compressed, custom-format PostgreSQL dump. Production also runs
-`.github/workflows/backup_daily.yml` every day at 02:17 UTC. GitHub schedules
-use UTC and can run late, so adjust the cron for the project's maintenance
-window and alert on failed or stale runs.
+gzip-compressed, custom-format PostgreSQL dump. Staging and production also run
+`.github/workflows/backup_daily.yml` every day at 02:17 UTC. The two jobs run
+one at a time on the self-hosted Zoro runner and use their respective GitHub
+Environment secrets. GitHub schedules use UTC and can run late, so adjust the
+cron for the project's maintenance window and alert on failed or stale runs.
 
 Each successful execution stores a local copy:
 
 ```text
-~/backups/[[ repo_name ]]/staging/database_YYYYMMDDTHHMMSSZ.dump.gz
-~/backups/[[ repo_name ]]/production/database_YYYYMMDDTHHMMSSZ.dump.gz
+~/backups/[[ repo_name ]]/staging/daily/database_YYYYMMDDTHHMMSSZ.dump.gz
+~/backups/[[ repo_name ]]/production/daily/database_YYYYMMDDTHHMMSSZ.dump.gz
 ```
 
 and an off-host copy:
 
 ```text
-s3:default/[[ repo_name ]]/db/staging/database_YYYYMMDDTHHMMSSZ.dump.gz
-s3:default/[[ repo_name ]]/db/production/database_YYYYMMDDTHHMMSSZ.dump.gz
+s3:default/[[ repo_name ]]/db/staging/daily/database_YYYYMMDDTHHMMSSZ.dump.gz
+s3:default/[[ repo_name ]]/db/production/daily/database_YYYYMMDDTHHMMSSZ.dump.gz
 ```
+
+On the first day of each month, the scheduled workflow also stores the same
+verified dump as `monthly/database_YYYY-MM.dump.gz`, both locally and on S3.
 
 The `s3` remote is created in memory by the workflow and writes to the bucket
 named by `S3_BUCKET`, which must be `default`. The directory uses the repository
@@ -415,27 +421,31 @@ and therefore blocks a deployment. It never uses `rclone sync`. Retention
 deletion is limited to this project's environment and runs only after a newly
 uploaded backup has been verified.
 
-By default, the ten latest local dumps and 30 days of remote dumps are kept.
-Override these runner/job environment variables only when a project needs a
-different policy:
+By default, daily dumps are retained for seven days and the latest 12 monthly
+snapshots are kept, with the same policy locally and on S3. Override these
+runner/job environment variables only when a project needs a different policy:
 
 - `BACKUP_REMOTE_PROJECT_PATH` (default `[[ repo_name ]]/db`);
 - `LOCAL_BACKUP_ROOT` (default `~/backups/[[ repo_name ]]`);
-- `LOCAL_BACKUPS_TO_KEEP` (default `10`);
-- `REMOTE_BACKUP_RETENTION_DAYS` (default `30`).
+- `DAILY_BACKUP_RETENTION_DAYS` (default `7`);
+- `MONTHLY_BACKUPS_TO_KEEP` (default `12`);
+- `CREATE_MONTHLY_BACKUP` (`1` only on the first scheduled run of a month).
 
 List the available production backups with:
 
 ```bash
-ls -lh ~/backups/[[ repo_name ]]/production/
+ls -lh ~/backups/[[ repo_name ]]/production/daily/
+ls -lh ~/backups/[[ repo_name ]]/production/monthly/
 # After exporting the ephemeral rclone configuration documented below:
-rclone lsl s3:default/[[ repo_name ]]/db/production/
+rclone lsl s3:default/[[ repo_name ]]/db/production/daily/
+rclone lsl s3:default/[[ repo_name ]]/db/production/monthly/
 ```
 
-The daily production schedule gives a nominal RPO of about 24 hours only while
-the runner and workflow remain healthy. Pre-deploy snapshots can reduce actual
-data loss around releases but do not replace monitoring. Record the accepted
-RPO/RTO, backup owner and restore-drill frequency in the project runbook.
+The daily schedule gives each environment a nominal RPO of about 24 hours only
+while the self-hosted runner and workflow remain healthy. Pre-deploy snapshots
+can reduce actual data loss around releases but do not replace monitoring.
+Record the accepted RPO/RTO, backup owner and restore-drill frequency in the
+project runbook.
 
 #### Configure S3 and rclone
 
@@ -502,15 +512,15 @@ pre-restore snapshot:
 ENVIRONMENT=production
 APP_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}"
 NGINX_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}_nginx"
-BACKUP="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/database_TIMESTAMP.dump.gz"
-BACKUP_DIR="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}"
+BACKUP="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/daily/database_TIMESTAMP.dump.gz"
+BACKUP_DIR="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/daily"
 
 # If the local file is unavailable, download and verify the off-host copy.
 rclone copyto \
-  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/database_TIMESTAMP.dump.gz" \
+  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/daily/database_TIMESTAMP.dump.gz" \
   "$BACKUP"
 rclone copyto \
-  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/database_TIMESTAMP.dump.gz.sha256" \
+  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/daily/database_TIMESTAMP.dump.gz.sha256" \
   "${BACKUP}.sha256"
 (cd "$BACKUP_DIR" && sha256sum --check "$(basename "$BACKUP").sha256")
 

@@ -209,6 +209,7 @@ class DatabaseBackupScriptTests(unittest.TestCase):
         container_exists: bool = True,
         container_running: bool = True,
         corrupt_remote: bool = False,
+        create_monthly_backup: bool = False,
         omit_s3_secret: bool = False,
         s3_bucket: str = "default",
     ) -> tuple[
@@ -292,6 +293,13 @@ case "$1 ${2:-}" in
     ;;
   "delete "*)
     ;;
+  "lsf "*)
+    find "$FAKE_REMOTE_DIR" -maxdepth 1 -type f \
+      -name 'database_????-??.dump.gz' -printf '%f\\n' | sort -r
+    ;;
+  "deletefile "*)
+    rm -f "$FAKE_REMOTE_DIR/${2##*/}"
+    ;;
   *)
     exit 1
     ;;
@@ -310,6 +318,9 @@ esac
                 ),
                 "APP_CONTAINER": "backup-project_production",
                 "CORRUPT_REMOTE": "1" if corrupt_remote else "0",
+                "CREATE_MONTHLY_BACKUP": (
+                    "1" if create_monthly_backup else "0"
+                ),
                 "ENVIRONMENT": "production",
                 "FAKE_CONTAINER_EXISTS": "1" if container_exists else "0",
                 "FAKE_CONTAINER_RUNNING": "true" if container_running else "false",
@@ -341,16 +352,40 @@ esac
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(rclone_log.count("copy "), 2)
         self.assertIn(
-            "cat s3:default/backup-project/db/production/",
+            "cat s3:default/backup-project/db/production/daily/",
             rclone_log,
         )
         self.assertIn(
-            "delete s3:default/backup-project/db/production",
+            "delete s3:default/backup-project/db/production/daily",
             rclone_log,
         )
         self.assertNotIn("sync ", rclone_log)
         self.assertEqual(len(list(fake_remote.glob("*.dump.gz"))), 1)
         self.assertEqual(len(list(fake_remote.glob("*.sha256"))), 1)
+
+    def test_monthly_backup_is_created_and_verified(self) -> None:
+        result, rclone_log, fake_remote = self.run_backup(
+            create_monthly_backup=True
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(rclone_log.count("copy "), 4)
+        self.assertIn(
+            "cat s3:default/backup-project/db/production/monthly/database_",
+            rclone_log,
+        )
+        self.assertIn(
+            "lsf s3:default/backup-project/db/production/monthly",
+            rclone_log,
+        )
+        self.assertEqual(
+            len(list(fake_remote.glob("database_????-??.dump.gz"))),
+            1,
+        )
+        self.assertEqual(
+            len(list(fake_remote.glob("database_????-??.dump.gz.sha256"))),
+            1,
+        )
 
     def test_corrupt_remote_fails_before_retention(self) -> None:
         result, rclone_log, _ = self.run_backup(corrupt_remote=True)
@@ -516,11 +551,20 @@ class RenderingTests(unittest.TestCase):
                     destination / ".github/workflows/backup_daily.yml"
                 ).read_text()
                 self.assertIn(
-                    "run: bash bin/backup_database.sh",
+                    "bash bin/backup_database.sh",
                     backup_workflow,
                 )
                 self.assertIn(
-                    f"group: database-{repo_name}-production",
+                    f"group: database-{repo_name}-${{{{ matrix.environment }}}}",
+                    backup_workflow,
+                )
+                self.assertIn(
+                    "environment:\n          - staging\n          - production",
+                    backup_workflow,
+                )
+                self.assertIn(
+                    "APP_CONTAINER: "
+                    f"{repo_name}_${{{{ matrix.environment }}}}",
                     backup_workflow,
                 )
 
