@@ -1,0 +1,55 @@
+name: Daily production database backup
+
+on:
+  schedule:
+    # GitHub cron uses UTC. Adjust this per project if another window is safer.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-[[ repo_name ]]-production
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: [self-hosted, zoro]
+    environment: production
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: production
+      APP_CONTAINER: [[ repo_name ]]_production
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Back up database locally and off-host
+        run: bash bin/backup_database.sh
+
+      - name: Notify KChat after failure
+        if: failure()
+        continue-on-error: true
+        env:
+          WEBHOOK_KCHAT: ${{ secrets.WEBHOOK_KCHAT }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+        run: |
+          if [ -z "$WEBHOOK_KCHAT" ]; then
+            echo "WEBHOOK_KCHAT not configured; rely on GitHub Actions notifications."
+            exit 0
+          fi
+
+          message=$(printf '*Backup production fallito*\nRepository: %s\nLog: %s' \
+            "$REPOSITORY" "$RUN_URL")
+          payload=$(MESSAGE="$message" python3 -c \
+            'import json, os; print(json.dumps({"text": os.environ["MESSAGE"]}))')
+          curl --fail --show-error --silent \
+            -X POST "$WEBHOOK_KCHAT" \
+            -H "Content-Type: application/json" \
+            -d "$payload"

@@ -228,6 +228,9 @@ In both environments:
   `~/backups/[[ repo_name ]]/<environment>/` on the runner;
 - every new database dump is validated with `pg_restore --list` before it
   replaces its temporary file;
+- every dump and checksum is copied to Swiss Backup S3 with rclone and read
+  back to verify its SHA-256 digest;
+- production also runs a daily backup at 02:17 UTC, independently of deploys;
 - deployments wait for container health, run an HTTP smoke test and restore the
   previous application image on failure;
 - the workflow creates `.env.deploy` from GitHub configuration and removes it
@@ -241,9 +244,9 @@ Image rollback does not automatically restore PostgreSQL: migrations should be
 backward-compatible. Use the timestamped backup for a deliberate database
 restore when a migration itself must be reverted.
 
-The runner-local backup is a fast rollback aid, not a disaster-recovery copy:
-replicate `~/backups/[[ repo_name ]]` to encrypted off-host storage according
-to your infrastructure policy.
+The runner-local backup is a fast rollback aid. The Swiss Backup S3 copy is the
+off-host disaster-recovery copy; a backup is successful only after rclone has
+read it back and verified its digest.
 
 ### Architecture boundaries
 
@@ -273,6 +276,14 @@ Required Environment secrets:
 - `DB_NAME`
 - `DB_USER`
 - `DB_PASSWORD`
+- `S3_BUCKET`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_ENDPOINT`
+
+Set `S3_BUCKET` to `default`, the bucket supplied by the Swiss Backup S3
+device. The four `S3_*` connection values are written to `.env.deploy`, passed
+to the application container and also used by the backup job.
 
 Required Environment variables:
 
@@ -372,27 +383,113 @@ certbot --nginx -d example.com
 
 ### Database backups and restore
 
-Before every update of an existing environment, its workflow stores a
-gzip-compressed, custom-format PostgreSQL dump on the self-hosted runner:
+Before every update of an existing environment, its workflow creates a
+gzip-compressed, custom-format PostgreSQL dump. Production also runs
+`.github/workflows/backup_daily.yml` every day at 02:17 UTC. GitHub schedules
+use UTC and can run late, so adjust the cron for the project's maintenance
+window and alert on failed or stale runs.
+
+Each successful execution stores a local copy:
 
 ```text
 ~/backups/[[ repo_name ]]/staging/database_YYYYMMDDTHHMMSSZ.dump.gz
 ~/backups/[[ repo_name ]]/production/database_YYYYMMDDTHHMMSSZ.dump.gz
 ```
 
-The directory uses the repository slug (`repo_name`), not the human-readable
-project name. Only the ten most recent backups are kept; older ones are removed
-after a successful new backup. List the available production backups with:
+and an off-host copy:
+
+```text
+s3:default/[[ repo_name ]]/db/staging/database_YYYYMMDDTHHMMSSZ.dump.gz
+s3:default/[[ repo_name ]]/db/production/database_YYYYMMDDTHHMMSSZ.dump.gz
+```
+
+The `s3` remote is created in memory by the workflow and writes to the bucket
+named by `S3_BUCKET`, which must be `default`. The directory uses the repository
+slug (`repo_name`), not the human-readable project name, and keeps staging and
+production in separate prefixes.
+
+The script validates the dump with `pg_restore --list`, writes a SHA-256
+sidecar, uploads both files with `rclone copy --immutable`, then reads both
+objects back from S3. Any dump, upload or verification error fails the workflow
+and therefore blocks a deployment. It never uses `rclone sync`. Retention
+deletion is limited to this project's environment and runs only after a newly
+uploaded backup has been verified.
+
+By default, the ten latest local dumps and 30 days of remote dumps are kept.
+Override these runner/job environment variables only when a project needs a
+different policy:
+
+- `BACKUP_REMOTE_PROJECT_PATH` (default `[[ repo_name ]]/db`);
+- `LOCAL_BACKUP_ROOT` (default `~/backups/[[ repo_name ]]`);
+- `LOCAL_BACKUPS_TO_KEEP` (default `10`);
+- `REMOTE_BACKUP_RETENTION_DAYS` (default `30`).
+
+List the available production backups with:
 
 ```bash
 ls -lh ~/backups/[[ repo_name ]]/production/
+# After exporting the ephemeral rclone configuration documented below:
+rclone lsl s3:default/[[ repo_name ]]/db/production/
 ```
 
-These backups are created before deployments, not on a time schedule. If the
-database may change between deploys, configure a separate scheduled,
-encrypted off-host backup whose frequency satisfies the declared RPO. Alert
-when either the latest backup or the latest successful restore drill exceeds
-the runbook threshold.
+The daily production schedule gives a nominal RPO of about 24 hours only while
+the runner and workflow remain healthy. Pre-deploy snapshots can reduce actual
+data loss around releases but do not replace monitoring. Record the accepted
+RPO/RTO, backup owner and restore-drill frequency in the project runbook.
+
+#### Configure S3 and rclone
+
+Install rclone on Zoro for the operating-system user that runs GitHub Actions.
+Do not create an `rclone.conf`: the backup script builds the `s3` remote in
+memory from GitHub Environment secrets for each job. The four S3 values are:
+
+```dotenv
+S3_BUCKET=default
+S3_ACCESS_KEY_ID=replace-with-the-access-key
+S3_SECRET_ACCESS_KEY=replace-with-the-secret-key
+S3_ENDPOINT=https://s3.swiss-backupNN.infomaniak.com
+```
+
+At runtime the script creates this equivalent configuration without writing it
+to disk:
+
+```ini
+[s3]
+type = s3
+provider = Other
+access_key_id = ${S3_ACCESS_KEY_ID}
+secret_access_key = ${S3_SECRET_ACCESS_KEY}
+endpoint = ${S3_ENDPOINT}
+acl = private
+```
+
+For manual list or restore operations, export the four GitHub secret values into
+the current protected shell, then create the same ephemeral remote:
+
+```bash
+export RCLONE_CONFIG_S3_TYPE=s3
+export RCLONE_CONFIG_S3_PROVIDER=Other
+export RCLONE_CONFIG_S3_ACCESS_KEY_ID="$S3_ACCESS_KEY_ID"
+export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
+export RCLONE_CONFIG_S3_ENDPOINT="${S3_ENDPOINT%/}"
+export RCLONE_CONFIG_S3_ACL=private
+```
+
+The existing `s3` credentials are shared with Matrix, so this layout separates
+data by prefix but not by authorization boundary. `rclone copy --immutable`
+prevents this script from replacing an existing timestamped object, but the S3
+credentials can still delete objects during scoped retention. This deliberately
+simple setup does not add client-side encryption, S3 Object Lock or append-only
+retention.
+
+Run a manual backup under the runner account with:
+
+```bash
+# Export the four S3 values from the protected secret store first.
+ENVIRONMENT=production \
+APP_CONTAINER=[[ repo_name ]]_production \
+bash bin/backup_database.sh
+```
 
 Application rollback does not restore the database automatically. Restore a
 dump only after confirming that application and migration versions require it:
@@ -407,6 +504,15 @@ APP_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}"
 NGINX_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}_nginx"
 BACKUP="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/database_TIMESTAMP.dump.gz"
 BACKUP_DIR="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}"
+
+# If the local file is unavailable, download and verify the off-host copy.
+rclone copyto \
+  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/database_TIMESTAMP.dump.gz" \
+  "$BACKUP"
+rclone copyto \
+  "s3:default/[[ repo_name ]]/db/${ENVIRONMENT}/database_TIMESTAMP.dump.gz.sha256" \
+  "${BACKUP}.sha256"
+(cd "$BACKUP_DIR" && sha256sum --check "$(basename "$BACKUP").sha256")
 
 gzip -dc "$BACKUP" | docker exec -i "$APP_CONTAINER" pg_restore --list >/dev/null
 
@@ -443,6 +549,10 @@ CSRF_TRUSTED_ORIGINS=https://example.com
 DB_NAME=[[ repo_name | replace('-', '_') ]]
 DB_USER=[[ db_user ]]
 DB_PASSWORD=replace-with-a-database-password
+S3_BUCKET=default
+S3_ACCESS_KEY_ID=replace-with-the-access-key
+S3_SECRET_ACCESS_KEY=replace-with-the-secret-key
+S3_ENDPOINT=https://s3.swiss-backupNN.infomaniak.com
 APP_PORT=PRODUCTION_PORT
 SECURE_HSTS_SECONDS=3600
 EMAIL_HOST=smtp.example.com

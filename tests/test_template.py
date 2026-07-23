@@ -201,6 +201,199 @@ class PostCopyTests(unittest.TestCase):
             self.assertEqual(target.read_text(), "unchanged\n")
 
 
+class DatabaseBackupScriptTests(unittest.TestCase):
+    def run_backup(
+        self,
+        *,
+        allow_missing_container: bool = False,
+        container_exists: bool = True,
+        container_running: bool = True,
+        corrupt_remote: bool = False,
+        omit_s3_secret: bool = False,
+        s3_bucket: str = "default",
+    ) -> tuple[
+        subprocess.CompletedProcess[str],
+        str,
+        Path,
+    ]:
+        temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary_directory.cleanup)
+        root = Path(temporary_directory.name)
+        fake_bin = root / "bin"
+        fake_remote = root / "remote"
+        fake_bin.mkdir()
+        fake_remote.mkdir()
+
+        script = root / "backup_database.sh"
+        script.write_text(
+            (ROOT / "template/bin/backup_database.sh.jinja")
+            .read_text()
+            .replace("[%% raw %%]", "")
+            .replace("[%% endraw %%]", "")
+            .replace("[[ repo_name ]]", "backup-project")
+        )
+        script.chmod(0o755)
+
+        docker = fake_bin / "docker"
+        docker.write_text(
+            """#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ "$1" == "container" && "$2" == "inspect" ]]; then
+  if [[ "$FAKE_CONTAINER_EXISTS" != "1" ]]; then
+    exit 1
+  fi
+  if [[ "${3:-}" == "--format" ]]; then
+    printf '%s\\n' "$FAKE_CONTAINER_RUNNING"
+  fi
+  exit 0
+fi
+if [[ "$1" == "exec" ]]; then
+  if [[ "$*" == *"pg_restore --list"* ]]; then
+    cat >/dev/null
+  else
+    printf 'valid custom-format dump'
+  fi
+  exit 0
+fi
+exit 1
+"""
+        )
+        docker.chmod(0o755)
+
+        rclone = fake_bin / "rclone"
+        rclone.write_text(
+            """#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\\n' "$*" >> "$RCLONE_LOG"
+case "$1 ${2:-}" in
+  "config file")
+    printf 'Configuration file is stored at:\\n%s\\n' "$RCLONE_CONFIG"
+    ;;
+  "config show")
+    printf '[s3]\\ntype = s3\\n'
+    ;;
+  "listremotes ")
+    [[ "$RCLONE_CONFIG_S3_TYPE" == "s3" ]]
+    [[ "$RCLONE_CONFIG_S3_ACCESS_KEY_ID" == "test-access-key" ]]
+    [[ "$RCLONE_CONFIG_S3_SECRET_ACCESS_KEY" == "test-secret-key" ]]
+    [[ "$RCLONE_CONFIG_S3_ENDPOINT" == "https://s3.example.test" ]]
+    printf 's3:\\n'
+    ;;
+  "copy "*)
+    cp "$2" "$FAKE_REMOTE_DIR/$(basename "$2")"
+    ;;
+  "cat "*)
+    name="${2##*/}"
+    if [[ "${CORRUPT_REMOTE:-0}" == "1" && "$name" == *.dump.gz ]]; then
+      printf 'corrupted remote data'
+    else
+      cat "$FAKE_REMOTE_DIR/$name"
+    fi
+    ;;
+  "delete "*)
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+"""
+        )
+        rclone.chmod(0o755)
+
+        rclone_log = root / "rclone.log"
+        rclone_log.touch()
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "ALLOW_MISSING_CONTAINER": (
+                    "1" if allow_missing_container else "0"
+                ),
+                "APP_CONTAINER": "backup-project_production",
+                "CORRUPT_REMOTE": "1" if corrupt_remote else "0",
+                "ENVIRONMENT": "production",
+                "FAKE_CONTAINER_EXISTS": "1" if container_exists else "0",
+                "FAKE_CONTAINER_RUNNING": "true" if container_running else "false",
+                "FAKE_REMOTE_DIR": str(fake_remote),
+                "HOME": str(root),
+                "LOCAL_BACKUP_ROOT": str(root / "backups"),
+                "PATH": f"{fake_bin}:{environment['PATH']}",
+                "RCLONE_LOG": str(rclone_log),
+                "S3_ACCESS_KEY_ID": "test-access-key",
+                "S3_BUCKET": s3_bucket,
+                "S3_ENDPOINT": "https://s3.example.test",
+                "S3_SECRET_ACCESS_KEY": "test-secret-key",
+            }
+        )
+        if omit_s3_secret:
+            environment.pop("S3_SECRET_ACCESS_KEY")
+        result = subprocess.run(
+            ["bash", str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+        return result, rclone_log.read_text(), fake_remote
+
+    def test_verified_backup_uses_copy_and_scoped_retention(self) -> None:
+        result, rclone_log, fake_remote = self.run_backup()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(rclone_log.count("copy "), 2)
+        self.assertIn(
+            "cat s3:default/backup-project/db/production/",
+            rclone_log,
+        )
+        self.assertIn(
+            "delete s3:default/backup-project/db/production",
+            rclone_log,
+        )
+        self.assertNotIn("sync ", rclone_log)
+        self.assertEqual(len(list(fake_remote.glob("*.dump.gz"))), 1)
+        self.assertEqual(len(list(fake_remote.glob("*.sha256"))), 1)
+
+    def test_corrupt_remote_fails_before_retention(self) -> None:
+        result, rclone_log, _ = self.run_backup(corrupt_remote=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Remote backup checksum verification failed", result.stderr)
+        self.assertNotIn("delete ", rclone_log)
+
+    def test_initial_deploy_may_skip_a_missing_container(self) -> None:
+        result, rclone_log, _ = self.run_backup(
+            allow_missing_container=True,
+            container_exists=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("No previous deployment found", result.stdout)
+        self.assertEqual(rclone_log, "")
+
+    def test_stopped_existing_container_blocks_deploy(self) -> None:
+        result, rclone_log, _ = self.run_backup(
+            allow_missing_container=True,
+            container_running=False,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Application container is not running", result.stderr)
+        self.assertEqual(rclone_log, "")
+
+    def test_missing_s3_secret_fails_before_rclone(self) -> None:
+        result, rclone_log, _ = self.run_backup(omit_s3_secret=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("S3_SECRET_ACCESS_KEY is required", result.stderr)
+        self.assertEqual(rclone_log, "")
+
+    def test_swiss_backup_bucket_must_be_default(self) -> None:
+        result, rclone_log, _ = self.run_backup(s3_bucket="another-bucket")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("S3_BUCKET must be default", result.stderr)
+        self.assertEqual(rclone_log, "")
+
+
 @unittest.skipUnless(COPIER, "Copier executable not found; set COPIER_BIN")
 class RenderingTests(unittest.TestCase):
     def render(self, *data: str) -> Path:
@@ -315,9 +508,21 @@ class RenderingTests(unittest.TestCase):
                     self.assertIn(rendered_languages, settings)
                 self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
+                self.assert_shell_scripts(destination)
                 self.assert_compose_config(destination, app)
                 self.assert_requirements_are_pinned(app)
                 self.assert_no_generator_markers(destination)
+                backup_workflow = (
+                    destination / ".github/workflows/backup_daily.yml"
+                ).read_text()
+                self.assertIn(
+                    "run: bash bin/backup_database.sh",
+                    backup_workflow,
+                )
+                self.assertIn(
+                    f"group: database-{repo_name}-production",
+                    backup_workflow,
+                )
 
     def test_text_answers_are_safely_serialized(self) -> None:
         destination = self.render(
@@ -677,6 +882,19 @@ class RenderingTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0)
+
+    def assert_shell_scripts(self, destination: Path) -> None:
+        backup_script = destination / "bin/backup_database.sh"
+        self.assertTrue(backup_script.is_file())
+        self.assertTrue(backup_script.stat().st_mode & stat.S_IXUSR)
+        for script in destination.rglob("*.sh"):
+            result = subprocess.run(
+                ["bash", "-n", str(script)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def assert_no_compiled_artifacts(self, destination: Path) -> None:
         for path in destination.rglob("*"):

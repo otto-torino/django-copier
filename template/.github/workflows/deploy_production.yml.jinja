@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-production
+  group: database-[[ repo_name ]]-production
   cancel-in-progress: false
 
 jobs:

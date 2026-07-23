@@ -26,6 +26,10 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+      S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
       ALLOWED_HOSTS: ${{ vars.ALLOWED_HOSTS }}
       CSRF_TRUSTED_ORIGINS: ${{ vars.CSRF_TRUSTED_ORIGINS }}
       SECURE_HSTS_SECONDS: ${{ vars.SECURE_HSTS_SECONDS }}
@@ -62,6 +66,10 @@ jobs:
               "DB_NAME": os.environ.get("DB_NAME", ""),
               "DB_USER": os.environ.get("DB_USER", ""),
               "DB_PASSWORD": os.environ.get("DB_PASSWORD", ""),
+              "S3_BUCKET": os.environ.get("S3_BUCKET", ""),
+              "S3_ACCESS_KEY_ID": os.environ.get("S3_ACCESS_KEY_ID", ""),
+              "S3_SECRET_ACCESS_KEY": os.environ.get("S3_SECRET_ACCESS_KEY", ""),
+              "S3_ENDPOINT": os.environ.get("S3_ENDPOINT", ""),
               "DB_HOST": "127.0.0.1",
               "DB_PORT": "5432",
               "APP_PORT": os.environ.get("APP_PORT", ""),
@@ -71,6 +79,10 @@ jobs:
               "DB_NAME",
               "DB_USER",
               "DB_PASSWORD",
+              "S3_BUCKET",
+              "S3_ACCESS_KEY_ID",
+              "S3_SECRET_ACCESS_KEY",
+              "S3_ENDPOINT",
               "ALLOWED_HOSTS",
               "CSRF_TRUSTED_ORIGINS",
               "APP_PORT",
@@ -93,10 +105,10 @@ jobs:
                   stream.write(f"{name}={dotenv_value(value)}\n")
           PY
 
-      - name: Preserve current image and back up database
+      - name: Preserve current image
         run: |
           if ! docker container inspect "$APP_CONTAINER" >/dev/null 2>&1; then
-            echo "No previous deployment found; skipping backup and rollback snapshot."
+            echo "No previous deployment found; skipping rollback snapshot."
             exit 0
           fi
 
@@ -104,42 +116,10 @@ jobs:
             --format '{{.Image}}' "$APP_CONTAINER")
           echo "PREVIOUS_IMAGE_ID=$previous_image" >> "$GITHUB_ENV"
 
-          if [ "$(docker container inspect --format '{{.State.Running}}' "$APP_CONTAINER")" != "true" ]; then
-            echo "Previous container is not running; skipping database backup."
-            exit 0
-          fi
-
-          backup_dir="$HOME/backups/[[ repo_name ]]/$ENVIRONMENT"
-          backup_file="$backup_dir/database_$(date -u +%Y%m%dT%H%M%SZ).dump.gz"
-          backup_tmp="$backup_file.tmp"
-          mkdir -p "$backup_dir"
-          chmod 700 "$backup_dir"
-
-          # pg_dump's custom format is only lightly compressed (per-block zlib),
-          # so gzip -9 over the whole archive shrinks it noticeably. The custom
-          # format is kept (not plain SQL) so the dump stays selectively
-          # restorable and verifiable with pg_restore. Run under pipefail so a
-          # failing pg_dump is not masked by gzip's success, then verify the
-          # archive we keep is a well-formed, restorable dump by decompressing
-          # it and letting pg_restore parse its table of contents.
-          ( set -o pipefail
-            docker exec "$APP_CONTAINER" sh -c \
-              'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
-              | gzip -9 > "$backup_tmp"
-            gzip -dc "$backup_tmp" \
-              | docker exec -i "$APP_CONTAINER" pg_restore --list >/dev/null )
-          mv "$backup_tmp" "$backup_file"
-          chmod 600 "$backup_file"
-
-          # Keep only the most recent backups so repeated deploys cannot fill
-          # the disk. Filenames are UTC timestamps, so newest-first ordering is
-          # stable; everything past the retention count is removed. The glob
-          # matches both new .dump.gz archives and any legacy .dump files.
-          backups_to_keep=10
-          ls -1t "$backup_dir"/database_*.dump* 2>/dev/null \
-            | tail -n +"$((backups_to_keep + 1))" \
-            | xargs -r rm -f --
-          echo "Database backup created: $backup_file"
+      - name: Back up database locally and off-host
+        env:
+          ALLOW_MISSING_CONTAINER: "1"
+        run: bash bin/backup_database.sh
 
       - name: Deploy
         run: |

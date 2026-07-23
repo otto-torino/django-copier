@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-staging
+  group: database-[[ repo_name ]]-staging
   cancel-in-progress: false
 
 jobs:

@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+[%% raw %%]
+set -Eeuo pipefail
+
+umask 077
+
+environment="${ENVIRONMENT:?ENVIRONMENT is required}"
+app_container="${APP_CONTAINER:-[%% endraw %%][[ repo_name ]][%% raw %%]_${environment}}"
+remote_project_path="${BACKUP_REMOTE_PROJECT_PATH:-[%% endraw %%][[ repo_name ]][%% raw %%]/db}"
+local_backup_root="${LOCAL_BACKUP_ROOT:-$HOME/backups/[%% endraw %%][[ repo_name ]][%% raw %%]}"
+local_backups_to_keep="${LOCAL_BACKUPS_TO_KEEP:-10}"
+remote_retention_days="${REMOTE_BACKUP_RETENTION_DAYS:-30}"
+allow_missing_container="${ALLOW_MISSING_CONTAINER:-0}"
+s3_bucket="${S3_BUCKET:?S3_BUCKET is required}"
+s3_access_key_id="${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}"
+s3_secret_access_key="${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}"
+s3_endpoint="${S3_ENDPOINT:?S3_ENDPOINT is required}"
+
+case "$environment" in
+  staging|production) ;;
+  *)
+    echo "ENVIRONMENT must be either staging or production." >&2
+    exit 1
+    ;;
+esac
+
+if [[ "$s3_bucket" != "default" ]]; then
+  echo "S3_BUCKET must be default for Swiss Backup." >&2
+  exit 1
+fi
+
+if [[ ! "$s3_endpoint" =~ ^https://[^[:space:]/]+/?$ ]]; then
+  echo "S3_ENDPOINT must be an HTTPS origin without a path." >&2
+  exit 1
+fi
+
+for secret_value in \
+  "$s3_access_key_id" \
+  "$s3_secret_access_key"; do
+  if [[ "$secret_value" == *$'\n'* || "$secret_value" == *$'\r'* ]]; then
+    echo "S3 credentials must not contain newlines." >&2
+    exit 1
+  fi
+done
+
+if [[ ! "$remote_project_path" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] \
+  || [[ "$remote_project_path" == /* ]] \
+  || [[ "/$remote_project_path/" == *"/../"* ]]; then
+  echo "BACKUP_REMOTE_PROJECT_PATH is not a safe relative remote path." >&2
+  exit 1
+fi
+
+if [[ ! "$local_backups_to_keep" =~ ^[1-9][0-9]*$ ]]; then
+  echo "LOCAL_BACKUPS_TO_KEEP must be a positive integer." >&2
+  exit 1
+fi
+
+if [[ ! "$remote_retention_days" =~ ^[1-9][0-9]*$ ]]; then
+  echo "REMOTE_BACKUP_RETENTION_DAYS must be a positive integer." >&2
+  exit 1
+fi
+
+for command in docker gzip rclone sha256sum; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "Required backup command is unavailable: $command" >&2
+    exit 1
+  fi
+done
+
+if ! docker container inspect "$app_container" >/dev/null 2>&1; then
+  if [[ "$allow_missing_container" == "1" ]]; then
+    echo "No previous deployment found; skipping database backup."
+    exit 0
+  fi
+  echo "Application container does not exist: $app_container" >&2
+  exit 1
+fi
+
+if [[ "$(docker container inspect --format '{{.State.Running}}' "$app_container")" != "true" ]]; then
+  echo "Application container is not running: $app_container" >&2
+  exit 1
+fi
+
+# Configure the S3 remote in memory. GitHub Environment secrets are exposed
+# only to this job; no S3 credential is persisted on the runner.
+export RCLONE_CONFIG_S3_TYPE=s3
+export RCLONE_CONFIG_S3_PROVIDER=Other
+export RCLONE_CONFIG_S3_ACCESS_KEY_ID="$s3_access_key_id"
+export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="$s3_secret_access_key"
+export RCLONE_CONFIG_S3_ENDPOINT="${s3_endpoint%/}"
+export RCLONE_CONFIG_S3_ACL=private
+
+if ! rclone listremotes | grep -Fxq "s3:"; then
+  echo "Ephemeral S3 rclone remote is unavailable." >&2
+  exit 1
+fi
+
+backup_dir="${local_backup_root}/${environment}"
+timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+backup_name="database_${timestamp}.dump.gz"
+checksum_name="${backup_name}.sha256"
+backup_file="${backup_dir}/${backup_name}"
+checksum_file="${backup_dir}/${checksum_name}"
+backup_tmp="${backup_file}.tmp"
+checksum_tmp="${checksum_file}.tmp"
+remote_dir="s3:${s3_bucket}/${remote_project_path}/${environment}"
+
+cleanup() {
+  rm -f -- "$backup_tmp" "$checksum_tmp"
+}
+trap cleanup EXIT
+
+mkdir -p "$backup_dir"
+chmod 700 "$backup_dir"
+
+# A failing pg_dump must not be hidden by gzip. Parse the compressed custom
+# archive with pg_restore before publishing it locally or remotely.
+(
+  set -o pipefail
+  docker exec "$app_container" sh -c \
+    'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
+    | gzip -9 > "$backup_tmp"
+  gzip -dc "$backup_tmp" \
+    | docker exec -i "$app_container" pg_restore --list >/dev/null
+)
+
+mv "$backup_tmp" "$backup_file"
+chmod 600 "$backup_file"
+(
+  cd "$backup_dir"
+  sha256sum "$backup_name"
+) > "$checksum_tmp"
+mv "$checksum_tmp" "$checksum_file"
+chmod 600 "$checksum_file"
+
+# Unique timestamped names plus --immutable prevent an existing remote backup
+# from being overwritten. `copy` never mirrors local deletions to the remote.
+rclone copy "$backup_file" "$remote_dir" --immutable
+rclone copy "$checksum_file" "$remote_dir" --immutable
+
+# Read the S3 object back and compare its bytes, including the checksum sidecar
+# itself. This verifies the complete upload and download path independently of
+# backend metadata or multipart ETags.
+local_hash=$(sha256sum "$backup_file" | awk '{print $1}')
+remote_hash=$(
+  set -o pipefail
+  rclone cat "${remote_dir}/${backup_name}" | sha256sum | awk '{print $1}'
+)
+if [[ "$remote_hash" != "$local_hash" ]]; then
+  echo "Remote backup checksum verification failed: ${remote_dir}/${backup_name}" >&2
+  exit 1
+fi
+
+local_checksum=$(cat "$checksum_file")
+remote_checksum=$(rclone cat "${remote_dir}/${checksum_name}")
+if [[ "$remote_checksum" != "$local_checksum" ]]; then
+  echo "Remote checksum sidecar verification failed: ${remote_dir}/${checksum_name}" >&2
+  exit 1
+fi
+
+# Retention is deliberately scoped to this project and environment. It runs
+# only after a new backup has been uploaded and verified successfully.
+rclone delete "$remote_dir" \
+  --min-age "${remote_retention_days}d" \
+  --include "database_*.dump.gz" \
+  --include "database_*.dump.gz.sha256" \
+  --exclude "*"
+
+mapfile -t local_backups < <(
+  find "$backup_dir" -maxdepth 1 -type f -name 'database_*.dump.gz' \
+    -printf '%f\n' | sort -r
+)
+for stale_backup in "${local_backups[@]:$local_backups_to_keep}"; do
+  rm -f -- \
+    "${backup_dir}/${stale_backup}" \
+    "${backup_dir}/${stale_backup}.sha256"
+done
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  printf 'backup_file=%s\n' "$backup_file" >> "$GITHUB_OUTPUT"
+  printf 'remote_file=%s\n' "${remote_dir}/${backup_name}" >> "$GITHUB_OUTPUT"
+fi
+
+echo "Verified database backup created:"
+echo "  local:  $backup_file"
+echo "  remote: ${remote_dir}/${backup_name}"
+[%% endraw %%]
