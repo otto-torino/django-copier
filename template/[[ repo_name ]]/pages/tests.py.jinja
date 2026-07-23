@@ -3,6 +3,8 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.sites.models import Site
 from django.template import Context
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
+from django.utils.translation import override
 
 from .models import Page
 from .sitemap import PageSitemap
@@ -54,6 +56,21 @@ class PageAccessTests(TestCase):
         response = self.client.get(self.page_url(page))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_absolute_url_respects_the_active_language(self):
+        page = self.create_page("/about/")
+        [%% if use_translations %%]
+        languages = ("it", "en")
+        [%% else %%]
+        languages = ("[[ default_language ]]",)
+        [%% endif %%]
+
+        for language in languages:
+            with self.subTest(language=language), override(language):
+                self.assertEqual(
+                    page.get_absolute_url(),
+                    reverse("pages:page", kwargs={"url": "about"}),
+                )
 
     def test_restricted_page_without_lists_allows_any_authenticated_user(self):
         page = self.create_page("/members/", registration_required=True)

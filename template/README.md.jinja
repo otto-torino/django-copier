@@ -206,8 +206,10 @@ In both environments:
 - Nginx starts only after the combined PostgreSQL/Gunicorn healthcheck passes;
 - the host's Nginx instance proxies the public domain to that loopback port;
 - Certbot on the host manages TLS;
-- workflows keep 30-day PostgreSQL backups under
+- workflows keep the ten most recent PostgreSQL backups under
   `~/backups/[[ repo_name ]]/<environment>/` on the runner;
+- every new database dump is validated with `pg_restore --list` before it
+  replaces its temporary file;
 - deployments wait for container health, run an HTTP smoke test and restore the
   previous application image on failure;
 - the workflow creates `.env.deploy` from GitHub configuration and removes it
@@ -220,6 +222,10 @@ to the Docker daemon or included in an image layer.
 Image rollback does not automatically restore PostgreSQL: migrations should be
 backward-compatible. Use the timestamped backup for a deliberate database
 restore when a migration itself must be reverted.
+
+The runner-local backup is a fast rollback aid, not a disaster-recovery copy:
+replicate `~/backups/[[ repo_name ]]` to encrypted off-host storage according
+to your infrastructure policy.
 
 ### GitHub configuration
 
@@ -332,16 +338,16 @@ certbot --nginx -d example.com
 ### Database backups and restore
 
 Before every update of an existing environment, its workflow stores a
-custom-format PostgreSQL dump on the self-hosted runner:
+gzip-compressed, custom-format PostgreSQL dump on the self-hosted runner:
 
 ```text
-~/backups/[[ repo_name ]]/staging/database_YYYYMMDDTHHMMSSZ.dump
-~/backups/[[ repo_name ]]/production/database_YYYYMMDDTHHMMSSZ.dump
+~/backups/[[ repo_name ]]/staging/database_YYYYMMDDTHHMMSSZ.dump.gz
+~/backups/[[ repo_name ]]/production/database_YYYYMMDDTHHMMSSZ.dump.gz
 ```
 
 The directory uses the repository slug (`repo_name`), not the human-readable
-project name. Dumps older than 30 days are removed after a successful new
-backup. List the available production backups with:
+project name. Only the ten most recent backups are kept; older ones are removed
+after a successful new backup. List the available production backups with:
 
 ```bash
 ls -lh ~/backups/[[ repo_name ]]/production/
@@ -358,15 +364,15 @@ pre-restore snapshot:
 ENVIRONMENT=production
 APP_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}"
 NGINX_CONTAINER="[[ repo_name ]]_${ENVIRONMENT}_nginx"
-BACKUP="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/database_TIMESTAMP.dump"
+BACKUP="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}/database_TIMESTAMP.dump.gz"
 BACKUP_DIR="$HOME/backups/[[ repo_name ]]/${ENVIRONMENT}"
 
-docker exec -i "$APP_CONTAINER" pg_restore --list < "$BACKUP" >/dev/null
+gzip -dc "$BACKUP" | docker exec -i "$APP_CONTAINER" pg_restore --list >/dev/null
 
-PRE_RESTORE="$BACKUP_DIR/pre_restore_$(date -u +%Y%m%dT%H%M%SZ).dump"
+PRE_RESTORE="$BACKUP_DIR/pre_restore_$(date -u +%Y%m%dT%H%M%SZ).dump.gz"
 docker exec "$APP_CONTAINER" sh -c \
   'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
-  > "$PRE_RESTORE"
+  | gzip -9 > "$PRE_RESTORE"
 chmod 600 "$PRE_RESTORE"
 ```
 
@@ -375,9 +381,8 @@ then restart Nginx:
 
 ```bash
 docker stop "$NGINX_CONTAINER"
-docker exec -i "$APP_CONTAINER" sh -c \
-  'PGPASSWORD="$DB_PASSWORD" pg_restore --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --clean --if-exists --no-owner --single-transaction' \
-  < "$BACKUP"
+gzip -dc "$BACKUP" | docker exec -i "$APP_CONTAINER" sh -c \
+  'PGPASSWORD="$DB_PASSWORD" pg_restore --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --clean --if-exists --no-owner --single-transaction'
 docker exec "$APP_CONTAINER" /healthcheck.sh
 docker start "$NGINX_CONTAINER"
 ```
@@ -419,6 +424,10 @@ docker compose --env-file .env.deploy -f docker-compose.production.yml \
   up -d --build --force-recreate --remove-orphans \
   --wait --wait-timeout 180
 ```
+
+`RUN_MIGRATIONS=0` also disables `sync_translation_fields` by default. Set
+`SYNC_TRANSLATION_FIELDS=1` explicitly only when you intentionally need the
+translation schema synchronization without the normal migration step.
 
 Replace `PRODUCTION_PORT` with the value of
 `[[ repo_name | upper | replace('-', '_') ]]_PRODUCTION_PORT`.

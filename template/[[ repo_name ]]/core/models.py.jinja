@@ -29,20 +29,20 @@ class Preferences(PreferencesUtilsModel):
     site_title = models.CharField(
         _("site title"),
         max_length=100,
-        default="[[ project_name ]]",
+        default=[[ project_name | tojson ]],
         blank=True,
     )
 
     meta_title = models.CharField(
         _("meta title"),
         max_length=100,
-        default="[[ project_name ]]",
+        default=[[ project_name | tojson ]],
         blank=True,
     )
     meta_description = models.CharField(
         _("meta description"),
         max_length=300,
-        default="[[ project_description ]]",
+        default=[[ project_description | tojson ]],
         blank=True,
     )
     meta_image = models.ImageField(

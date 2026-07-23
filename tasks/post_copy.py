@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import secrets
 from pathlib import Path
 
@@ -21,11 +22,25 @@ def dotenv_value(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def write_private_file(path: Path, content: str) -> None:
+    """Create a private file atomically, without following an existing symlink."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+            descriptor = -1
+            stream.write(content)
+        path.chmod(0o600)
+    except BaseException:
+        if descriptor >= 0:
+            os.close(descriptor)
+        path.unlink(missing_ok=True)
+        raise
+
+
 def main() -> None:
     args = parse_args()
     env_path = Path.cwd() / args.repo_name / ".env"
-    if env_path.exists():
-        raise FileExistsError(f"Refusing to overwrite existing file: {env_path}")
     if not env_path.parent.is_dir():
         raise FileNotFoundError(f"Application directory not found: {env_path.parent}")
 
@@ -47,8 +62,12 @@ def main() -> None:
     content = "".join(
         f"{name}={dotenv_value(str(value))}\n" for name, value in values.items()
     )
-    env_path.write_text(content, encoding="utf-8")
-    env_path.chmod(0o600)
+    try:
+        write_private_file(env_path, content)
+    except FileExistsError:
+        raise FileExistsError(
+            f"Refusing to overwrite existing file: {env_path}"
+        ) from None
     print("\nProject generated without building images or starting services.")
     print("Run `make bootstrap` from the project root when ready.")
 

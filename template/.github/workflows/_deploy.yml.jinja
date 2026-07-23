@@ -47,30 +47,51 @@ jobs:
       COMPOSE_FILE: docker-compose.${{ inputs.environment }}.yml
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Create deploy env file
         run: |
-          for name in SECRET_KEY DB_NAME DB_USER DB_PASSWORD ALLOWED_HOSTS CSRF_TRUSTED_ORIGINS APP_PORT; do
-            if [ -z "${!name}" ]; then
-              echo "::error::Missing $name deploy value"
-              exit 1
-            fi
-          done
+          python3 - <<'PY'
+          import os
 
-          umask 077
-          {
-            echo "SECRET_KEY=$SECRET_KEY"
-            echo "ALLOWED_HOSTS=$ALLOWED_HOSTS"
-            echo "CSRF_TRUSTED_ORIGINS=$CSRF_TRUSTED_ORIGINS"
-            echo "SECURE_HSTS_SECONDS=${SECURE_HSTS_SECONDS:-3600}"
-            echo "DB_NAME=$DB_NAME"
-            echo "DB_USER=$DB_USER"
-            echo "DB_PASSWORD=$DB_PASSWORD"
-            echo "DB_HOST=127.0.0.1"
-            echo "DB_PORT=5432"
-            echo "APP_PORT=$APP_PORT"
-          } > .env.deploy
+          values = {
+              "SECRET_KEY": os.environ.get("SECRET_KEY", ""),
+              "ALLOWED_HOSTS": os.environ.get("ALLOWED_HOSTS", ""),
+              "CSRF_TRUSTED_ORIGINS": os.environ.get("CSRF_TRUSTED_ORIGINS", ""),
+              "SECURE_HSTS_SECONDS": os.environ.get("SECURE_HSTS_SECONDS") or "3600",
+              "DB_NAME": os.environ.get("DB_NAME", ""),
+              "DB_USER": os.environ.get("DB_USER", ""),
+              "DB_PASSWORD": os.environ.get("DB_PASSWORD", ""),
+              "DB_HOST": "127.0.0.1",
+              "DB_PORT": "5432",
+              "APP_PORT": os.environ.get("APP_PORT", ""),
+          }
+          required = (
+              "SECRET_KEY",
+              "DB_NAME",
+              "DB_USER",
+              "DB_PASSWORD",
+              "ALLOWED_HOSTS",
+              "CSRF_TRUSTED_ORIGINS",
+              "APP_PORT",
+          )
+          missing = [name for name in required if not values[name]]
+          if missing:
+              raise SystemExit(f"Missing deploy values: {', '.join(missing)}")
+
+          def dotenv_value(value):
+              if "\n" in value or "\r" in value:
+                  raise SystemExit("Deploy values must not contain newlines")
+              # Compose treats single-quoted dotenv values literally, so `$`
+              # and `#` in secrets cannot trigger interpolation or comments.
+              return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+          flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+          descriptor = os.open(".env.deploy", flags, 0o600)
+          with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+              for name, value in values.items():
+                  stream.write(f"{name}={dotenv_value(value)}\n")
+          PY
 
       - name: Preserve current image and back up database
         run: |
@@ -89,17 +110,35 @@ jobs:
           fi
 
           backup_dir="$HOME/backups/[[ repo_name ]]/$ENVIRONMENT"
-          backup_file="$backup_dir/database_$(date -u +%Y%m%dT%H%M%SZ).dump"
+          backup_file="$backup_dir/database_$(date -u +%Y%m%dT%H%M%SZ).dump.gz"
           backup_tmp="$backup_file.tmp"
           mkdir -p "$backup_dir"
           chmod 700 "$backup_dir"
 
-          docker exec "$APP_CONTAINER" sh -c \
-            'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
-            > "$backup_tmp"
+          # pg_dump's custom format is only lightly compressed (per-block zlib),
+          # so gzip -9 over the whole archive shrinks it noticeably. The custom
+          # format is kept (not plain SQL) so the dump stays selectively
+          # restorable and verifiable with pg_restore. Run under pipefail so a
+          # failing pg_dump is not masked by gzip's success, then verify the
+          # archive we keep is a well-formed, restorable dump by decompressing
+          # it and letting pg_restore parse its table of contents.
+          ( set -o pipefail
+            docker exec "$APP_CONTAINER" sh -c \
+              'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
+              | gzip -9 > "$backup_tmp"
+            gzip -dc "$backup_tmp" \
+              | docker exec -i "$APP_CONTAINER" pg_restore --list >/dev/null )
           mv "$backup_tmp" "$backup_file"
           chmod 600 "$backup_file"
-          find "$backup_dir" -type f -name '*.dump' -mtime +30 -delete
+
+          # Keep only the most recent backups so repeated deploys cannot fill
+          # the disk. Filenames are UTC timestamps, so newest-first ordering is
+          # stable; everything past the retention count is removed. The glob
+          # matches both new .dump.gz archives and any legacy .dump files.
+          backups_to_keep=10
+          ls -1t "$backup_dir"/database_*.dump* 2>/dev/null \
+            | tail -n +"$((backups_to_keep + 1))" \
+            | xargs -r rm -f --
           echo "Database backup created: $backup_file"
 
       - name: Deploy

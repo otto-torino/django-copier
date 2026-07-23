@@ -3,12 +3,11 @@
 {% block content %}
     <div class="md:max-w-5xl md:mx-auto p-5">
         <section>
-            <h1>[[ project_name ]]</h1>
-            <p>[[ project_description ]]</p>
+            <h1>[[ project_name | e ]]</h1>
+            <p>[[ project_description | e ]]</p>
             <div class="max-w-sm mx-auto">
                 {% search_widget %}
             </div>
         </section>
     </div>
 {% endblock %}
-

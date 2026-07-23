@@ -2,4 +2,5 @@
 -r common.txt
 
 gunicorn==26.0.0
+packaging==26.2
 whitenoise==6.12.0

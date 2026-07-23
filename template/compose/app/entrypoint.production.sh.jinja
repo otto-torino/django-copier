@@ -114,7 +114,7 @@ if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
 fi
 
 [%% if use_translations -%%]
-if [ "${SYNC_TRANSLATION_FIELDS:-1}" = "1" ]; then
+if [ "${SYNC_TRANSLATION_FIELDS:-${RUN_MIGRATIONS:-1}}" = "1" ]; then
   run_as_django python manage.py sync_translation_fields --noinput
 fi
 [%% endif -%%]

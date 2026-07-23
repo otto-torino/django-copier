@@ -66,7 +66,7 @@ EMAIL_HOST_PASSWORD = getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = _env_bool('EMAIL_USE_TLS', default=True)
 EMAIL_USE_SSL = _env_bool('EMAIL_USE_SSL', default=False)
 EMAIL_TIMEOUT = int(getenv('EMAIL_TIMEOUT', '10'))
-DEFAULT_FROM_EMAIL = getenv('DEFAULT_FROM_EMAIL', '[[ email ]]')
+DEFAULT_FROM_EMAIL = getenv('DEFAULT_FROM_EMAIL', [[ email | tojson ]])
 SERVER_EMAIL = getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
 if EMAIL_USE_TLS and EMAIL_USE_SSL:

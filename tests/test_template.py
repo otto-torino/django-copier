@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import io
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -16,6 +17,7 @@ from unittest import mock
 from tasks.post_copy import dotenv_value
 from tasks.post_copy import main as post_copy_main
 from tasks.post_copy import parse_args as parse_post_copy_args
+from tasks.post_copy import write_private_file
 from tasks.preflight import main as preflight_main
 from tasks.preflight import parse_args as parse_preflight_args
 from tasks.preflight import unavailable_ports
@@ -185,6 +187,19 @@ class PostCopyTests(unittest.TestCase):
                 sys.argv = previous_argv
                 os.chdir(previous_directory)
 
+    def test_private_file_refuses_existing_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            target = root / "target"
+            target.write_text("unchanged\n")
+            link = root / ".env"
+            link.symlink_to(target)
+
+            with self.assertRaises(FileExistsError):
+                write_private_file(link, "SECRET=unsafe\n")
+
+            self.assertEqual(target.read_text(), "unchanged\n")
+
 
 @unittest.skipUnless(COPIER, "Copier executable not found; set COPIER_BIN")
 class RenderingTests(unittest.TestCase):
@@ -303,6 +318,54 @@ class RenderingTests(unittest.TestCase):
                 self.assert_compose_config(destination, app)
                 self.assert_no_generator_markers(destination)
 
+    def test_text_answers_are_safely_serialized(self) -> None:
+        destination = self.render(
+            "project_name=Client's Site",
+            "project_description=Research & development",
+            "repo_name=client-site",
+        )
+        app = destination / "client-site"
+
+        self.assert_python_syntax(app)
+        settings = (app / "core/settings/common.py").read_text()
+        self.assertIn('name = "Client\\u0027s Site"', settings)
+        home = (app / "core/templates/home.html").read_text()
+        self.assertIn("Client&#39;s Site", home)
+        self.assertIn("Research &amp; development", home)
+
+    def test_copier_validators_report_errors_without_template_syntax_failures(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            destination = Path(temporary_directory) / "project"
+            result = subprocess.run(
+                [
+                    str(COPIER),
+                    "copy",
+                    "--trust",
+                    "--defaults",
+                    "--skip-tasks",
+                    "--quiet",
+                    "--vcs-ref=HEAD",
+                    "--data",
+                    "use_translations=true",
+                    "--data",
+                    "languages=[it,it]",
+                    "--data",
+                    "default_language=it",
+                    str(ROOT),
+                    str(destination),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Validation error for question 'languages'", output)
+        self.assertNotIn("unexpected '%'", output)
+
     def test_update_preserves_project_changes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary_root = Path(temporary_directory)
@@ -389,6 +452,96 @@ class RenderingTests(unittest.TestCase):
             answers = (destination / ".copier-answers.yml").read_text()
             self.assertIn("_commit: v1.2.0", answers)
 
+    def test_update_from_previous_real_release(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            template_repository = temporary_root / "template-history"
+            subprocess.run(
+                [
+                    "git",
+                    "clone",
+                    "--quiet",
+                    "--no-hardlinks",
+                    str(ROOT),
+                    str(template_repository),
+                ],
+                check=True,
+            )
+            if (
+                subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(template_repository),
+                        "rev-parse",
+                        "--verify",
+                        "v1.0.5",
+                    ],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                ).returncode
+                != 0
+            ):
+                self.skipTest("The previous release tag v1.0.5 is unavailable")
+
+            shutil.copytree(
+                ROOT,
+                template_repository,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns(
+                    ".git",
+                    ".parity",
+                    "__pycache__",
+                    "*.pyc",
+                ),
+            )
+            self.git(template_repository, "config", "user.name", "Template Test")
+            self.git(
+                template_repository,
+                "config",
+                "user.email",
+                "template-test@example.com",
+            )
+            self.git(template_repository, "add", "-A")
+            self.git(
+                template_repository,
+                "commit",
+                "-qm",
+                "Template version under test",
+            )
+            self.git(template_repository, "tag", "v1.0.6")
+
+            destination = temporary_root / "project"
+            self.copy_from_repository(
+                template_repository,
+                destination,
+                "project_name=Upgrade Project",
+                "repo_name=upgrade-project",
+                "use_translations=true",
+                "languages=[it,en]",
+                "default_language=it",
+                vcs_ref="v1.0.5",
+            )
+            self.initialize_project_repository(destination)
+            readme = destination / "README.md"
+            readme.write_text(readme.read_text() + "\nLocal upgrade note.\n")
+            self.git(destination, "add", "README.md")
+            self.git(destination, "commit", "-qm", "Customize generated project")
+
+            self.update_project(destination)
+
+            app = destination / "upgrade-project"
+            self.assertIn("Local upgrade note.", readme.read_text())
+            self.assertIn("Django==6.0.7", (app / "requirements/common.txt").read_text())
+            self.assertIn(
+                "POSTGRES_SEARCH_CONFIGS",
+                (app / "search_app/views.py").read_text(),
+            )
+            self.assert_python_syntax(app)
+            answers = (destination / ".copier-answers.yml").read_text()
+            self.assertIn("_commit: v1.0.6", answers)
+
     def create_template_repository(self, temporary_root: Path) -> Path:
         template_repository = temporary_root / "template-repository"
         shutil.copytree(
@@ -419,6 +572,7 @@ class RenderingTests(unittest.TestCase):
         template_repository: Path,
         destination: Path,
         *data: str,
+        vcs_ref: str | None = None,
     ) -> None:
         command = [
             str(COPIER),
@@ -428,6 +582,8 @@ class RenderingTests(unittest.TestCase):
             "--skip-tasks",
             "--quiet",
         ]
+        if vcs_ref is not None:
+            command.extend(("--vcs-ref", vcs_ref))
         for answer in data:
             command.extend(("--data", answer))
         command.extend((str(template_repository), str(destination)))
@@ -534,6 +690,17 @@ class RenderingTests(unittest.TestCase):
             except UnicodeDecodeError:
                 continue
             self.assertNotIn("[%%", content, path)
+            self.assertIsNone(
+                re.search(
+                    r"\[\[[ \t]*(?:"
+                    r"_copier|project_name|project_description|repo_name|"
+                    r"use_cabinet|use_sorl_thumbnail|use_translations|languages|"
+                    r"default_language|timezone|author|email|db_user"
+                    r")\b",
+                    content,
+                ),
+                path,
+            )
 
     def git(self, repository: Path, *arguments: str) -> None:
         subprocess.run(

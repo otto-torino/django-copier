@@ -1,8 +1,8 @@
-pip>=21.2.2
+pip==26.1.2
 concurrent-log-handler==0.9.29
 psycopg2==2.9.12
 python-dotenv==1.2.2
-Django==6.0.6
+Django==6.0.7
 dj-editor-js==0.3.0
 django-compressor==4.6.0
 django-cleanup==9.0.0
@@ -24,3 +24,23 @@ django-tree-queries==0.24.0
 [%% endif %%]
 django-web-components==0.2.0
 feedparser==6.0.12
+
+# Locked transitive dependencies. Keep these exact pins in sync with the
+# direct dependencies above so fresh builds resolve to the same environment.
+asgiref==3.12.1
+certifi==2026.7.22
+charset-normalizer==3.4.9
+django-appconf==1.2.0
+django-js-asset==4.0.1
+django-mptt==0.18.0
+idna==3.18
+Pillow==12.3.0
+portalocker==3.2.0
+pytailwindcss==0.3.1
+rcssmin==1.2.2
+requests==2.34.2
+rjsmin==1.2.5
+sgmllib3k==1.0.0
+sqlparse==0.5.5
+typing-extensions==4.16.0
+urllib3==2.7.0

@@ -37,10 +37,10 @@
 {% block hero %}
     <div class="relative">
         {% thumbnail page.image "1920x500" crop=page.image.sorl as cropped %}
-            <img src={{ cropped.url }} alt="image" class="hidden lg:block w-full" width="1920" height="500" />
+            <img src="{{ cropped.url }}" alt="{{ page.alt_text }}" class="hidden lg:block w-full" width="1920" height="500" />
         {% endthumbnail %}
         {% thumbnail page.image "800x400" crop=page.image.sorl as cropped %}
-            <img src={{ cropped.url }} alt="image" class="lg:hidden w-full" width="800" height="400" />
+            <img src="{{ cropped.url }}" alt="{{ page.alt_text }}" class="lg:hidden w-full" width="800" height="400" />
         {% endthumbnail %}
         <div class="md:max-w-5xl md:mx-auto px-5">
             <h1>{{ page.title }}</h1>

@@ -16,10 +16,8 @@ from django.contrib.sites.models import Site
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.urls import get_script_prefix, reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.encoding import iri_to_uri
-from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django_extensions.db.models import TimeStampedModel
 from editor_js.fields import EditorJSField
@@ -209,9 +207,9 @@ class Page(TimeStampedModel, Searchable):
         return cls.objects.accessible_by(request.user, site=site)
 
     def get_absolute_url(self):
-        # Handle script prefix manually because we bypass reverse()
-        return iri_to_uri(
-            get_script_prefix().rstrip("/") + f"/p{self.url}"
+        return reverse(
+            "pages:page",
+            kwargs={"url": self.url.strip("/")},
         )
 
     def has_map_content(self):

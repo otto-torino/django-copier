@@ -1,15 +1,64 @@
-from django.shortcuts import render
-from django.contrib.postgres.search import (
-    SearchVector, 
-    SearchQuery, 
-    SearchRank, 
-    SearchHeadline
-)
-from django.apps import apps
-from .models import Searchable
 from collections import defaultdict
-from django.utils.translation import get_language
+
+from django.apps import apps
 from django.conf import settings
+from django.contrib.postgres.search import (
+    SearchHeadline,
+    SearchQuery,
+    SearchRank,
+    SearchVector,
+)
+from django.shortcuts import render
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
+from django.utils.translation import get_language
+
+from .models import Searchable
+
+
+POSTGRES_SEARCH_CONFIGS = {
+    "ar": "arabic",
+    "da": "danish",
+    "nl": "dutch",
+    "en": "english",
+    "fi": "finnish",
+    "fr": "french",
+    "de": "german",
+    "hu": "hungarian",
+    "it": "italian",
+    "no": "norwegian",
+    "pt": "portuguese",
+    "ro": "romanian",
+    "ru": "russian",
+    "es": "spanish",
+    "sv": "swedish",
+    "tr": "turkish",
+}
+HIGHLIGHT_START = "__DJANGO_COPIER_HIGHLIGHT_START__"
+HIGHLIGHT_STOP = "__DJANGO_COPIER_HIGHLIGHT_STOP__"
+HIGHLIGHT_START_HTML = '<span class="bg-yellow-200 font-bold">'
+HIGHLIGHT_STOP_HTML = "</span>"
+
+
+def get_postgres_search_config(language_code):
+    """Map a Django language code to a PostgreSQL text-search configuration."""
+    normalized = (language_code or "").lower().replace("_", "-")
+    return POSTGRES_SEARCH_CONFIGS.get(
+        normalized,
+        POSTGRES_SEARCH_CONFIGS.get(normalized.split("-", 1)[0], "simple"),
+    )
+
+
+def render_search_headline(value):
+    """Escape indexed content while preserving our controlled highlight tags."""
+    escaped = str(escape(value or ""))
+    return mark_safe(
+        escaped.replace(HIGHLIGHT_START, HIGHLIGHT_START_HTML).replace(
+            HIGHLIGHT_STOP,
+            HIGHLIGHT_STOP_HTML,
+        )
+    )
+
 
 def search_view(request):
     """
@@ -23,9 +72,8 @@ def search_view(request):
     query_text = request.GET.get('q', '').strip()
     grouped_results = defaultdict(list)
     total_results_count = 0
-    current_language = get_language()
-    LANG_TO_PG_CONFIG = dict(settings.LANGUAGES)
-    pg_search_config = LANG_TO_PG_CONFIG.get(current_language, 'simple')
+    current_language = get_language() or settings.LANGUAGE_CODE
+    pg_search_config = get_postgres_search_config(current_language)
 
     context = {
         'query': query_text,
@@ -42,10 +90,9 @@ def search_view(request):
             if issubclass(model, Searchable) and not model._meta.abstract
         ]
 
-        highlight_start_tag = '<span class="bg-yellow-200 font-bold">'
         headline_options = {
-            'start_sel': highlight_start_tag,
-            'stop_sel': '</span>',
+            'start_sel': HIGHLIGHT_START,
+            'stop_sel': HIGHLIGHT_STOP,
             'max_fragments': 3,
             'fragment_delimiter': ' ... '
         }
@@ -59,33 +106,36 @@ def search_view(request):
                 for field in search_fields
             }
 
-            queryset = model.get_search_queryset(request).annotate(
-                search=search_vector,
-                rank=SearchRank(search_vector, search_query),
-                **headline_annotations
-            ).filter(search=search_query).order_by('id', '-rank').distinct('id')
-            
-            if queryset.exists():
-                model_verbose_name_plural = model._meta.verbose_name_plural.title()
-                for item in queryset:
-                    best_headline = ''
+            queryset = (
+                model.get_search_queryset(request)
+                .annotate(
+                    search=search_vector,
+                    rank=SearchRank(search_vector, search_query),
+                    **headline_annotations,
+                )
+                .filter(search=search_query)
+                .order_by('id', '-rank')
+                .distinct('id')
+            )
+            result_limit = max(1, int(settings.SEARCH_RESULTS_PER_MODEL))
+            model_verbose_name_plural = model._meta.verbose_name_plural.title()
+            for item in queryset[:result_limit]:
+                best_headline = ''
+                for field in search_fields:
+                    headline_content = getattr(item, f'headline_{field}')
+                    if headline_content and HIGHLIGHT_START in headline_content:
+                        best_headline = headline_content
+                        break
+
+                if not best_headline:
                     for field in search_fields:
-                        headline_content = getattr(item, f'headline_{field}')
-                        if headline_content and highlight_start_tag in headline_content:
-                            best_headline = headline_content
+                        fallback_content = getattr(item, f'headline_{field}')
+                        if fallback_content:
+                            best_headline = fallback_content
                             break
 
-                    if not best_headline:
-                        for field in search_fields:
-                            fallback_content = getattr(item, f'headline_{field}')
-                            if fallback_content:
-                                best_headline = fallback_content
-                                break
-
-                    item.headline = best_headline
-                    
-                    # Append to the list for that model
-                    grouped_results[model_verbose_name_plural].append(item)
+                item.headline = render_search_headline(best_headline)
+                grouped_results[model_verbose_name_plural].append(item)
 
         # Sort results within each group by rank and calculate total
         for model_name, results_list in grouped_results.items():

@@ -11,20 +11,26 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: python -m pip install "copier>=9.3,<10" coverage mypy
+        run: python -m pip install "copier>=9.3,<10" coverage mypy "pip-audit>=2.9,<3"
       - name: Type check template tooling
         run: mypy tasks tests
       - name: Test template
         run: |
           coverage run --source=tasks -m unittest -v
           coverage xml
+      - name: Audit generated Python dependencies
+        run: |
+          copier copy --trust --defaults --skip-tasks --vcs-ref=HEAD \
+            . "${RUNNER_TEMP}/audit-project"
+          pip-audit --progress-spinner=off \
+            -r "${RUNNER_TEMP}/audit-project/my-new-project/requirements/production.txt"
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           disable_search: true
           fail_ci_if_error: true
@@ -78,8 +84,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
       - name: Install Copier
@@ -101,6 +107,71 @@ jobs:
       - name: Run generated Django tests
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make test
+      - name: Build and check the production image
+        if: matrix.name == 'full'
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
+        run: |
+          cleanup_production() {
+            docker rm --force generated-production-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup_production EXIT
+
+          docker build \
+            --file compose/app/Dockerfile.production \
+            --tag generated-production:ci .
+          docker run --detach \
+            --name generated-production-ci \
+            --health-cmd /healthcheck.sh \
+            --health-interval 2s \
+            --health-timeout 5s \
+            --health-retries 10 \
+            --env SECRET_KEY=ci-production-secret-key-with-more-than-fifty-characters \
+            --env DB_NAME=ci_production \
+            --env DB_USER=ci_production \
+            --env DB_PASSWORD=ci-production-password \
+            --env ALLOWED_HOSTS=example.com \
+            --env CSRF_TRUSTED_ORIGINS=https://example.com \
+            --env COLLECTSTATIC_ON_STARTUP=0 \
+            generated-production:ci
+
+          for attempt in $(seq 1 30); do
+            health=$(docker inspect \
+              --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' \
+              generated-production-ci)
+            [ "$health" = "healthy" ] && break
+            [ "$health" = "unhealthy" ] && exit 1
+            sleep 2
+          done
+          [ "$health" = "healthy" ]
+
+          docker exec generated-production-ci \
+            python manage.py check --deploy
+          docker exec generated-production-ci python -c \
+            'import urllib.request; request = urllib.request.Request("http://127.0.0.1:8000/it/", headers={"Host": "example.com", "X-Forwarded-Proto": "https"}); assert urllib.request.urlopen(request, timeout=10).status == 200'
+
+          backup_file="${{ runner.temp }}/production-restore-test.dump"
+          docker exec generated-production-ci sh -c \
+            'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
+            > "$backup_file"
+          docker exec -i generated-production-ci pg_restore --list \
+            < "$backup_file" >/dev/null
+          docker exec generated-production-ci sh -c \
+            'gosu postgres createdb --owner "$DB_USER" restore_test'
+          docker exec -i generated-production-ci sh -c \
+            'PGPASSWORD="$DB_PASSWORD" pg_restore --host 127.0.0.1 --username "$DB_USER" --dbname restore_test --no-owner --single-transaction' \
+            < "$backup_file"
+
+          for compose_file in docker-compose.staging.yml docker-compose.production.yml; do
+            SECRET_KEY=ci-secret \
+            DB_NAME=ci \
+            DB_USER=ci \
+            DB_PASSWORD=ci \
+            ALLOWED_HOSTS=example.com \
+            CSRF_TRUSTED_ORIGINS=https://example.com \
+            APP_PORT=18080 \
+              docker compose --env-file /dev/null \
+                --file "$compose_file" config --quiet
+          done
       - name: Show service logs after failure
         if: failure()
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
