@@ -35,11 +35,19 @@
             <div class="results-container mt-8">
                 <h2 class="text-2xl font-bold border-b border-base-300 pb-4 mb-6">
                     {% if total_results_count > 0 %}
-                        {% blocktrans trimmed count counter=total_results_count %}
-                            Found {{ counter }} result for
-                        {% plural %}
-                            Found {{ counter }} results for
-                        {% endblocktrans %}
+                        {% if results_truncated %}
+                            {% blocktrans trimmed count counter=total_results_count %}
+                                Showing the first {{ counter }} result for
+                            {% plural %}
+                                Showing the first {{ counter }} results for
+                            {% endblocktrans %}
+                        {% else %}
+                            {% blocktrans trimmed count counter=total_results_count %}
+                                Found {{ counter }} result for
+                            {% plural %}
+                                Found {{ counter }} results for
+                            {% endblocktrans %}
+                        {% endif %}
                         "<span class="badge badge-primary badge-lg align-middle">{{ query }}</span>"
                     {% else %}
                         {% trans "No results found for" %} "<span class="badge badge-primary badge-lg align-middle">{{ query }}</span>"
@@ -74,6 +82,25 @@
                             {% endaccordion %}
                         {% endfor %}
                     </div>
+                    {% if page_obj.paginator.num_pages > 1 %}
+                        <nav class="join flex justify-center mt-8" aria-label="{% trans 'Search result pages' %}">
+                            {% if page_obj.has_previous %}
+                                <a class="join-item btn" href="?q={{ query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">
+                                    {% trans "Previous" %}
+                                </a>
+                            {% endif %}
+                            <span class="join-item btn btn-disabled" aria-current="page">
+                                {% blocktrans trimmed with current=page_obj.number total=page_obj.paginator.num_pages %}
+                                    Page {{ current }} of {{ total }}
+                                {% endblocktrans %}
+                            </span>
+                            {% if page_obj.has_next %}
+                                <a class="join-item btn" href="?q={{ query|urlencode }}&amp;page={{ page_obj.next_page_number }}">
+                                    {% trans "Next" %}
+                                </a>
+                            {% endif %}
+                        </nav>
+                    {% endif %}
                 {% else %}
                     <div class="text-center py-16 px-6 bg-base-200 rounded-lg">
                         <svg class="mx-auto h-12 w-12 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

@@ -107,6 +107,9 @@ jobs:
       - name: Run generated Django tests
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make test
+      - name: Lint generated Python
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
+        run: make lint
       - name: Build and check the production image
         if: matrix.name == 'full'
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}

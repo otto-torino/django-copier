@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
-from .models import Page, PageContentLayoutItem, PageContentMapItem
+from .models import Page, PageContentMapItem
 
 
 class PageForm(forms.ModelForm):

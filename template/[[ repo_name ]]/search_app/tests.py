@@ -1,6 +1,6 @@
 from django.contrib.sites.models import Site
 from django.core.exceptions import ImproperlyConfigured
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils.translation import override
 
@@ -65,3 +65,44 @@ class SearchViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Searchable needle")
+
+    @override_settings(SEARCH_RESULTS_PER_MODEL=10, SEARCH_RESULTS_PER_PAGE=2)
+    def test_search_results_are_paginated_and_keep_the_query(self):
+        for index in range(3):
+            page = Page.objects.create(
+                url=f"/searchable-{index}/",
+                title=f"Searchable needle {index}",
+                status=Page.PUBLISHED,
+            )
+            page.sites.add(self.site)
+
+        response = self.client.get(
+            reverse("search_app:search"),
+            {"q": "needle", "page": 2},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+        self.assertEqual(page_obj.number, 2)
+        self.assertEqual(page_obj.paginator.count, 4)
+        self.assertEqual(len(page_obj.object_list), 2)
+        self.assertContains(response, "?q=needle&amp;page=1")
+
+    @override_settings(SEARCH_RESULTS_PER_MODEL=2, SEARCH_RESULTS_PER_PAGE=10)
+    def test_search_limits_results_per_model(self):
+        for index in range(3):
+            page = Page.objects.create(
+                url=f"/limited-{index}/",
+                title=f"Limited needle {index}",
+                status=Page.PUBLISHED,
+            )
+            page.sites.add(self.site)
+
+        response = self.client.get(
+            reverse("search_app:search"),
+            {"q": "needle"},
+        )
+
+        self.assertEqual(response.context["total_results_count"], 2)
+        self.assertIs(response.context["results_truncated"], True)
+        self.assertContains(response, "Showing the first 2 results")

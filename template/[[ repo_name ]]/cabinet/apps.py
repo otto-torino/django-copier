@@ -9,12 +9,8 @@ class CabinetConfig(AppConfig):
     verbose_name = _("Cabinet media library")
 
     def ready(self):
-        # Register attachment content block to pages app if it is installed
-        try:
-            from pages.admin import PageAdmin
+        from pages.admin import PageAdmin
 
-            from .models import PageContentMultiAttachment
+        from .models import PageContentMultiAttachment
 
-            PageAdmin.register(PageContentMultiAttachment)
-        except:
-            pass
+        PageAdmin.register(PageContentMultiAttachment)

@@ -176,6 +176,21 @@ assigned with `textContent`, and links accept only relative, HTTP or HTTPS URLs.
 Invalid legacy values are omitted from rendering instead of being interpreted
 as code.
 
+## Code quality and dependency reproducibility
+
+Run the generated Django tests and Ruff checks before committing:
+
+```bash
+make test
+make lint
+```
+
+CI runs both commands for every generated-project variant. Direct and
+transitive Python dependencies are pinned to exact versions, and CI audits the
+production set for known vulnerabilities. Package artifacts are not yet locked
+by hash; environments that require artifact-level reproducibility should
+generate and review hash-locked requirements for their target platforms.
+
 ## Deployments
 
 Staging and production use the same Docker architecture on the
@@ -226,6 +241,23 @@ restore when a migration itself must be reverted.
 The runner-local backup is a fast rollback aid, not a disaster-recovery copy:
 replicate `~/backups/[[ repo_name ]]` to encrypted off-host storage according
 to your infrastructure policy.
+
+### Architecture boundaries
+
+The single application container deliberately runs both Gunicorn and
+PostgreSQL. It is suitable only while all of these conditions remain true:
+
+- one application replica is sufficient;
+- a single-host failure domain is acceptable;
+- deploy-time database restarts fit the availability target;
+- runner-local storage has monitored capacity and reliable snapshots;
+- recovery objectives are satisfied by the configured backup schedule.
+
+Move PostgreSQL to a separate service or managed database before introducing
+multiple application replicas, high-availability requirements, independent
+database scaling, zero-downtime deploys, or an RPO/RTO that the single host
+cannot demonstrate in restore drills. Record the chosen RPO, RTO, backup owner,
+off-host destination and restore-drill frequency in the project runbook.
 
 ### GitHub configuration
 
@@ -352,6 +384,12 @@ after a successful new backup. List the available production backups with:
 ```bash
 ls -lh ~/backups/[[ repo_name ]]/production/
 ```
+
+These backups are created before deployments, not on a time schedule. If the
+database may change between deploys, configure a separate scheduled,
+encrypted off-host backup whose frequency satisfies the declared RPO. Alert
+when either the latest backup or the latest successful restore drill exceeds
+the runbook threshold.
 
 Application rollback does not restore the database automatically. Restore a
 dump only after confirming that application and migration versions require it:

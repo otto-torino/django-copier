@@ -316,6 +316,7 @@ class RenderingTests(unittest.TestCase):
                 self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
                 self.assert_compose_config(destination, app)
+                self.assert_requirements_are_pinned(app)
                 self.assert_no_generator_markers(destination)
 
     def test_text_answers_are_safely_serialized(self) -> None:
@@ -654,6 +655,17 @@ class RenderingTests(unittest.TestCase):
     def assert_env_unchanged(self, env_path: Path, original: bytes) -> None:
         self.assertEqual(env_path.read_bytes(), original)
         self.assertEqual(stat.S_IMODE(env_path.stat().st_mode), 0o600)
+
+    def assert_requirements_are_pinned(self, app: Path) -> None:
+        requirement_pattern = re.compile(
+            r"^[A-Za-z0-9][A-Za-z0-9._-]*==[A-Za-z0-9][A-Za-z0-9._+-]*$"
+        )
+        for requirements_file in (app / "requirements").glob("*.txt"):
+            for raw_line in requirements_file.read_text().splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith(("#", "-r ")):
+                    continue
+                self.assertRegex(line, requirement_pattern, requirements_file)
 
     def assert_python_syntax(self, app: Path) -> None:
         result = subprocess.run(

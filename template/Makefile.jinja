@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help bootstrap start build stop clean shell createsuperuser test manage reset-db
+.PHONY: help bootstrap start build stop clean shell createsuperuser test lint manage reset-db
 
 ifeq (manage,$(firstword $(MAKECMDGOALS)))
 MANAGE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -21,6 +21,7 @@ help:
 		'  make shell                    Open a shell in the app container' \
 		'  make createsuperuser          Create a Django superuser' \
 		'  make test                     Run the Django test suite' \
+		'  make lint                     Lint generated Python with Ruff' \
 		'  make manage -- <command>      Run a Django management command' \
 		'  make reset-db                 Recreate the local development database'
 
@@ -49,6 +50,9 @@ createsuperuser:
 
 test:
 	docker compose exec -e DJANGO_SETTINGS_MODULE=core.settings.test app python manage.py test
+
+lint:
+	docker compose exec -T app ruff check .
 
 # drops and recreates the local dev database
 reset-db:
