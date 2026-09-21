@@ -7,7 +7,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from django.conf.locale import LANG_INFO
 from django.utils.functional import lazy
+[%% if use_cabinet %%]
 from django.utils.translation import gettext_lazy as _
+[%% endif %%]
 
 load_dotenv()
 

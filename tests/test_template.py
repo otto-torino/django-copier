@@ -535,8 +535,13 @@ class RenderingTests(unittest.TestCase):
                 )
                 requirements = (app / "requirements/common.txt").read_text()
                 self.assertEqual("sorl-thumbnail==" in requirements, sorl)
+                settings = (app / "core/settings/common.py").read_text()
+                self.assertEqual(
+                    "from django.utils.translation import gettext_lazy as _"
+                    in settings,
+                    cabinet,
+                )
                 if languages:
-                    settings = (app / "core/settings/common.py").read_text()
                     rendered_languages = "\n".join(
                         f'    "{language}",' for language in languages
                     )
@@ -735,6 +740,10 @@ class RenderingTests(unittest.TestCase):
             ):
                 self.skipTest("The previous release tag v1.0.5 is unavailable")
 
+            # Build the synthetic release from the actual previous release.
+            # Cloning ROOT checks out the current commit, so copying ROOT over
+            # it would otherwise be a no-op in a clean checkout (as in CI).
+            self.git(template_repository, "checkout", "-q", "v1.0.5")
             shutil.copytree(
                 ROOT,
                 template_repository,
