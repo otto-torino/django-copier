@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load editor_js_filters %}
+{% block title %}{{ object.meta_title|default:object.title }}{% endblock title %}
+{% block meta_description %}{{ object.meta_description }}{% endblock meta_description %}
+{% block content %}
+<main class="md:max-w-5xl md:mx-auto p-5">
+    <article>
+        <h1>{{ object.title }}</h1>
+        <time datetime="{{ object.publication_date|date:'Y-m-d' }}">{{ object.publication_date }}</time>
+        {% if object.image %}<img src="{{ object.image.url }}" alt="{{ object.alt_text }}">{% endif %}
+        {{ object.content|render_editor_js }}
+    </article>
+</main>
+{% endblock content %}

@@ -27,7 +27,7 @@ help:
 
 bootstrap:
 	docker compose build app
-	docker compose run --rm app python manage.py makemigrations core tagall pages[%% if use_cabinet %%] cabinet[%% endif %%]
+	docker compose run --rm app python manage.py makemigrations core tagall pages[%% if use_cabinet %%] cabinet[%% endif %%][%% if use_news %%] news[%% endif %%][%% if use_events %%] events[%% endif %%]
 	docker compose up -d
 
 start:

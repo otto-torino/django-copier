@@ -1,0 +1,95 @@
+from baton.fields import BatonAiImageField
+from django.contrib.sites.models import Site
+from django.db import models
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django_extensions.db.fields import AutoSlugField
+from django_extensions.db.models import TimeStampedModel
+from editor_js.fields import EditorJSField
+
+from search_app.models import Searchable
+
+from .managers import NewsArticleQuerySet
+
+
+class NewsArticle(TimeStampedModel, Searchable):
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+    STATUS_CHOICES = (
+        (DRAFT, _("draft")),
+        (PUBLISHED, _("published")),
+        (ARCHIVED, _("archived")),
+    )
+
+    title = models.CharField(_("title"), max_length=255)
+    slug = AutoSlugField(
+        _("slug"),
+        populate_from="title",
+        editable=True,
+        max_length=255,
+    )
+    abstract = EditorJSField(_("abstract"), blank=True, null=True)
+    content = EditorJSField(_("content"), blank=True, null=True)
+    image = BatonAiImageField(
+        _("image"),
+        upload_to="news/images/",
+        subject_location_field="subject_location",
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        blank=True,
+        null=True,
+    )
+    alt_text = models.CharField(_("alt text"), max_length=255, blank=True)
+    subject_location = models.CharField(max_length=7, default="50,50")
+    publication_date = models.DateField(
+        _("publication date"),
+        default=timezone.localdate,
+        help_text=_("The article becomes public on this date."),
+    )
+    status = models.IntegerField(
+        _("status"), choices=STATUS_CHOICES, default=DRAFT
+    )
+    is_featured = models.BooleanField(_("featured"), default=False)
+    auth_required = models.BooleanField(
+        _("authentication required"), default=False
+    )
+    tags = models.ManyToManyField(
+        "tagall.Tag", verbose_name=_("tags"), related_name="news", blank=True
+    )
+    sites = models.ManyToManyField(Site, verbose_name=_("sites"))
+    meta_title = models.CharField(_("meta title"), max_length=255, blank=True)
+    meta_description = models.TextField(_("meta description"), blank=True)
+
+    search_fields = ["title", "abstract", "content"]
+    objects = NewsArticleQuerySet.as_manager()
+
+    class Meta(TimeStampedModel.Meta, Searchable.Meta):
+        ordering = ("-publication_date", "-created")
+        verbose_name = _("news article")
+        verbose_name_plural = _("news articles")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("slug", "publication_date"),
+                name="news_unique_slug_publication_date",
+            )
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse(
+            "news:detail",
+            kwargs={
+                "year": self.publication_date.strftime("%Y"),
+                "month": self.publication_date.strftime("%m"),
+                "day": self.publication_date.strftime("%d"),
+                "slug": self.slug,
+            },
+        )
+
+    @classmethod
+    def get_search_queryset(cls, request):
+        site = Site.objects.get_current(request)
+        return cls.objects.accessible_by(request.user, site=site)

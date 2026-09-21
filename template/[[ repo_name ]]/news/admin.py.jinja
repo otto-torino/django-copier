@@ -1,0 +1,60 @@
+from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
+[%% if use_translations %%]
+from modeltranslation.admin import TranslationAdmin
+[%% endif %%]
+
+from .models import NewsArticle
+
+
+@admin.register(NewsArticle)
+class NewsArticleAdmin([%% if use_translations %%]TranslationAdmin[%% else %%]admin.ModelAdmin[%% endif %%]):
+    list_display = (
+        "title",
+        "publication_date",
+        "is_featured",
+        "status",
+    )
+    list_editable = ("is_featured", "status")
+    list_filter = ("status", "is_featured", "publication_date", "sites")
+    search_fields = ("title", "abstract", "content")
+    filter_horizontal = ("tags", "sites")
+    date_hierarchy = "publication_date"
+    readonly_fields = ("created", "modified")
+    fieldsets = (
+        (
+            _("Main"),
+            {
+                "fields": (
+                    "title",
+                    "slug",
+                    "publication_date",
+                    "status",
+                    "is_featured",
+                    "auth_required",
+                    "sites",
+                ),
+                "classes": (
+                    "baton-tabs-init",
+                    "baton-tab-fs-content",
+                    "baton-tab-fs-media",
+                    "baton-tab-fs-classification",
+                    "baton-tab-fs-seo",
+                ),
+            },
+        ),
+        (_("Content"), {"fields": ("abstract", "content"), "classes": ("tab-fs-content",)}),
+        (_("Media"), {"fields": ("image", "alt_text", "subject_location"), "classes": ("tab-fs-media",)}),
+        (_("Classification"), {"fields": ("tags",), "classes": ("tab-fs-classification",)}),
+        (_("SEO"), {"fields": ("meta_title", "meta_description"), "classes": ("tab-fs-seo",)}),
+        (_("Metadata"), {"fields": ("created", "modified"), "classes": ("tab-fs-meta",)}),
+    )
+    baton_tag_suggestion_fields = {
+        "tags": {
+            "source_fields": ["title", "content"],
+            "label_field": "name",
+            "max_suggestions": 8,
+            "existing_limit": 2000,
+            "allow_new": True,
+        }
+    }

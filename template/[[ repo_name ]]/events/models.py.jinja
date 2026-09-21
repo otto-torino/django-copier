@@ -1,0 +1,103 @@
+from baton.fields import BatonAiImageField
+from django.contrib.sites.models import Site
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
+from django_extensions.db.fields import AutoSlugField
+from django_extensions.db.models import TimeStampedModel
+from editor_js.fields import EditorJSField
+
+from search_app.models import Searchable
+
+from .managers import EventQuerySet
+
+
+class Event(TimeStampedModel, Searchable):
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+    STATUS_CHOICES = (
+        (DRAFT, _("draft")),
+        (PUBLISHED, _("published")),
+        (ARCHIVED, _("archived")),
+    )
+
+    title = models.CharField(_("title"), max_length=255)
+    slug = AutoSlugField(
+        _("slug"),
+        populate_from="title",
+        editable=True,
+        max_length=255,
+    )
+    abstract = EditorJSField(_("abstract"), blank=True, null=True)
+    description = EditorJSField(_("description"), blank=True, null=True)
+    image = BatonAiImageField(
+        _("image"),
+        upload_to="events/images/",
+        subject_location_field="subject_location",
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        blank=True,
+        null=True,
+    )
+    alt_text = models.CharField(_("alt text"), max_length=255, blank=True)
+    subject_location = models.CharField(max_length=7, default="50,50")
+    date = models.DateField(_("start date"))
+    date_end = models.DateField(_("end date"), blank=True, null=True)
+    location = models.CharField(_("location"), max_length=255, blank=True)
+    status = models.IntegerField(
+        _("status"), choices=STATUS_CHOICES, default=DRAFT
+    )
+    is_featured = models.BooleanField(_("featured"), default=False)
+    auth_required = models.BooleanField(
+        _("authentication required"), default=False
+    )
+    tags = models.ManyToManyField(
+        "tagall.Tag", verbose_name=_("tags"), related_name="events", blank=True
+    )
+    sites = models.ManyToManyField(Site, verbose_name=_("sites"))
+    meta_title = models.CharField(_("meta title"), max_length=255, blank=True)
+    meta_description = models.TextField(_("meta description"), blank=True)
+
+    search_fields = ["title", "abstract", "description", "location"]
+    objects = EventQuerySet.as_manager()
+
+    class Meta(TimeStampedModel.Meta, Searchable.Meta):
+        ordering = ("date", "title")
+        verbose_name = _("event")
+        verbose_name_plural = _("events")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("slug", "date"),
+                name="events_unique_slug_date",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(date_end__isnull=True)
+                | models.Q(date_end__gte=models.F("date")),
+                name="events_end_not_before_start",
+            ),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        super().clean()
+        if self.date_end and self.date_end < self.date:
+            raise ValidationError({"date_end": _("End date cannot precede start date.")})
+
+    def get_absolute_url(self):
+        return reverse(
+            "events:detail",
+            kwargs={
+                "year": self.date.strftime("%Y"),
+                "month": self.date.strftime("%m"),
+                "day": self.date.strftime("%d"),
+                "slug": self.slug,
+            },
+        )
+
+    @classmethod
+    def get_search_queryset(cls, request):
+        site = Site.objects.get_current(request)
+        return cls.objects.accessible_by(request.user, site=site)

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load editor_js_filters %}
+{% block title %}News{% endblock title %}
+{% block content %}
+<main class="md:max-w-5xl md:mx-auto p-5">
+    <h1>News</h1>
+    {% for article in object_list %}
+        <article class="my-8">
+            <h2><a href="{{ article.get_absolute_url }}">{{ article.title }}</a></h2>
+            <time datetime="{{ article.publication_date|date:'Y-m-d' }}">{{ article.publication_date }}</time>
+            {% if article.abstract %}{{ article.abstract|render_editor_js }}{% endif %}
+        </article>
+    {% empty %}
+        <p>No news available.</p>
+    {% endfor %}
+    {% include "news/pagination.html" %}
+</main>
+{% endblock content %}

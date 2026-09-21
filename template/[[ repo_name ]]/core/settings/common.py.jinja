@@ -107,6 +107,9 @@ INSTALLED_APPS = (
 
     # Custom apps
     'pages',
+[%% if use_news %%]    'news',
+[%% endif %%][%% if use_events %%]    'events',
+[%% endif %%]
     'theme',
     'search_app',
 
@@ -240,8 +243,11 @@ BATON = {
         {'type': 'title', 'label': 'Navigation',  'apps': ('lineup', ), 'icon': 'menu', 'children': [
             {'type': 'model', 'app': 'lineup', 'name': 'menuitem', 'label': 'Menu',},
         ]},
-         {'type': 'title', 'label': 'Contents',  'apps': ('pages', 'tagall', ), 'icon': 'description', 'default_open': True, 'children': [
+         {'type': 'title', 'label': 'Contents',  'apps': ('pages', 'tagall',[%% if use_news %%] 'news',[%% endif %%][%% if use_events %%] 'events',[%% endif %%] ), 'icon': 'description', 'default_open': True, 'children': [
             {'type': 'model', 'app': 'pages', 'name': 'page', 'label': 'Pages',},
+[%% if use_news %%]            {'type': 'model', 'app': 'news', 'name': 'newsarticle', 'label': 'News',},
+[%% endif %%][%% if use_events %%]            {'type': 'model', 'app': 'events', 'name': 'event', 'label': 'Events',},
+[%% endif %%]
             {'type': 'model', 'app': 'tagall', 'name': 'tag', 'label': 'Tags',},
         ]},
     ),

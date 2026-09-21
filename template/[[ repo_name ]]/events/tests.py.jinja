@@ -1,0 +1,77 @@
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import Event
+
+
+class EventTests(TestCase):
+    def setUp(self):
+        self.site = Site.objects.get_current()
+        self.site.domain = "testserver"
+        self.site.save()
+        Site.objects.clear_cache()
+
+    def create_event(self, **overrides):
+        values = {
+            "title": "Upcoming event",
+            "slug": "upcoming-event",
+            "date": timezone.localdate() + timedelta(days=1),
+            "status": Event.PUBLISHED,
+        }
+        values.update(overrides)
+        event = Event.objects.create(**values)
+        event.sites.add(self.site)
+        return event
+
+    def test_list_only_contains_current_and_future_events(self):
+        upcoming = self.create_event()
+        self.create_event(
+            title="Past event",
+            slug="past-event",
+            date=timezone.localdate() - timedelta(days=2),
+        )
+        ongoing = self.create_event(
+            title="Ongoing event",
+            slug="ongoing-event",
+            date=timezone.localdate() - timedelta(days=1),
+            date_end=timezone.localdate() + timedelta(days=1),
+        )
+
+        response = self.client.get(reverse("events:list"))
+
+        self.assertEqual(set(response.context["object_list"]), {upcoming, ongoing})
+
+    def test_end_date_cannot_precede_start_date(self):
+        event = Event(
+            title="Invalid",
+            date=timezone.localdate(),
+            date_end=timezone.localdate() - timedelta(days=1),
+        )
+
+        with self.assertRaises(ValidationError):
+            event.full_clean()
+
+    def test_auth_required_event_is_private_but_available_after_login(self):
+        event = self.create_event(auth_required=True)
+
+        anonymous = self.client.get(event.get_absolute_url())
+        user = get_user_model().objects.create_user("reader", password="password")
+        self.client.force_login(user)
+        authenticated = self.client.get(event.get_absolute_url())
+
+        self.assertEqual(anonymous.status_code, 404)
+        self.assertEqual(authenticated.status_code, 200)
+
+    def test_sitemap_only_contains_public_events(self):
+        from .sitemap import EventSitemap
+
+        public = self.create_event()
+        self.create_event(title="Private", slug="private", auth_required=True)
+
+        self.assertEqual(list(EventSitemap().items()), [public])

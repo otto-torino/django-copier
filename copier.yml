@@ -14,8 +14,12 @@ _envops:
 
 _exclude:
   - "[[ repo_name ~ '/cabinet' if not use_cabinet else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/news' if not (use_news | default(false)) else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/events' if not (use_events | default(false)) else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/pages/translation.py' if not use_translations else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/cabinet/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/news/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/events/translation.py' if not use_translations else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/tagall/translation.py' if not use_translations else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/core/translation.py' if not use_translations else '.copier-never-match' ]]"
 
@@ -86,6 +90,16 @@ use_cabinet:
   type: bool
   default: false
   help: Include the cabinet application
+
+use_news:
+  type: bool
+  default: false
+  help: Include the news application
+
+use_events:
+  type: bool
+  default: false
+  help: Include the events application
 
 use_sorl_thumbnail:
   type: bool

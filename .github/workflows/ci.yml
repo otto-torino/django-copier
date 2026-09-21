@@ -51,6 +51,8 @@ jobs:
             project_name: Default Project
             repo_name: default-project
             cabinet: false
+            news: false
+            events: false
             sorl: true
             translations: false
             languages: "[it,en]"
@@ -58,6 +60,8 @@ jobs:
             project_name: Minimal Project
             repo_name: minimal-project
             cabinet: false
+            news: false
+            events: false
             sorl: false
             translations: false
             languages: "[it,en]"
@@ -65,6 +69,8 @@ jobs:
             project_name: Cabinet Project
             repo_name: cabinet-project
             cabinet: true
+            news: false
+            events: false
             sorl: true
             translations: false
             languages: "[it,en]"
@@ -72,6 +78,8 @@ jobs:
             project_name: Multilingual Project
             repo_name: multilingual-project
             cabinet: false
+            news: false
+            events: false
             sorl: true
             translations: true
             languages: "[it,en]"
@@ -79,6 +87,8 @@ jobs:
             project_name: Full Project
             repo_name: full-project
             cabinet: true
+            news: true
+            events: true
             sorl: true
             translations: true
             languages: "[it,en,fr]"
@@ -97,6 +107,8 @@ jobs:
             --data project_name="${{ matrix.project_name }}" \
             --data repo_name="${{ matrix.repo_name }}" \
             --data use_cabinet="${{ matrix.cabinet }}" \
+            --data use_news="${{ matrix.news }}" \
+            --data use_events="${{ matrix.events }}" \
             --data use_sorl_thumbnail="${{ matrix.sorl }}" \
             --data use_translations="${{ matrix.translations }}" \
             --data languages='${{ matrix.languages }}' \

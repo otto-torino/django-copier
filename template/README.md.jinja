@@ -114,6 +114,16 @@ For example:
 make manage -- makemigrations pages
 ```
 
+[%% if use_news or use_events %%]
+## Optional content modules
+
+[%% if use_news %%]The news module is available at `/news/` and includes publication scheduling,
+featured articles, tags, site-wide search, an RSS feed and sitemap entries.
+[%% endif %%][%% if use_events %%]The events module is available at `/events/` and includes date ranges,
+upcoming/featured events, tags, site-wide search, an RSS feed and sitemap entries.
+[%% endif %%]
+[%% endif %%]
+
 ## Template updates
 
 This project stores its template source, version and answers in
