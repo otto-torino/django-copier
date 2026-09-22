@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_GET
 
 from pages.handlers import FeedFetchError, consume_rss_feed
+from search_app.related import get_related_content
 
 from .models import Page, PageContentRssFeed
 
@@ -71,6 +72,7 @@ def render_page(request, p):
     context = {
         "page": p,
         "updated": date,
+        "related_content": get_related_content(p, request),
     }
     
     response = HttpResponse(template.render(context, request))

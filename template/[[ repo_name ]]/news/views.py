@@ -3,6 +3,8 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.generic import DetailView, ListView
 
+from search_app.related import get_related_content
+
 from .models import NewsArticle
 
 
@@ -45,3 +47,10 @@ class NewsDetailView(DetailView):
             )
             .prefetch_related("tags")
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["related_content"] = get_related_content(
+            self.object, self.request
+        )
+        return context

@@ -593,6 +593,8 @@ class RenderingTests(unittest.TestCase):
                 requirements = (app / "requirements/common.txt").read_text()
                 self.assertEqual("sorl-thumbnail==" in requirements, sorl)
                 settings = (app / "core/settings/common.py").read_text()
+                self.assertTrue((app / "search_app/related.py").is_file())
+                self.assertIn("RELATED_CONTENT_RESULTS = ", settings)
                 self.assertEqual(
                     "from django.utils.translation import gettext_lazy as _"
                     in settings,

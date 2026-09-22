@@ -13,3 +13,18 @@ def search_widget():
     """
     search_url = reverse('search_app:search')
     return {'search_url': search_url}
+
+
+@register.inclusion_tag(
+    'search_app/related_content_widget.html', takes_context=True
+)
+def related_content_widget(context, results, title=None):
+    """
+    Renders the related content suggestions produced by
+    ``search_app.related.get_related_content``.
+    """
+    return {
+        'results': results,
+        'title': title,
+        'user': context.get('user'),
+    }

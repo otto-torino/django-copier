@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load editor_js_filters %}
+{% load editor_js_filters search_tags %}
 {% block title %}{{ object.meta_title|default:object.title }}{% endblock title %}
 {% block meta_description %}{{ object.meta_description }}{% endblock meta_description %}
 {% block content %}
@@ -10,5 +10,6 @@
         {% if object.image %}<img src="{{ object.image.url }}" alt="{{ object.alt_text }}">{% endif %}
         {{ object.content|render_editor_js }}
     </article>
+    {% related_content_widget related_content %}
 </main>
 {% endblock content %}
