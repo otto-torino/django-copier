@@ -4,9 +4,17 @@ from datetime import date, datetime
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Count, Q
+from django.db.models import Case, Count, F, IntegerField, Q, Value, When
 
 from .models import Searchable
+
+
+TAG_WEIGHT = 3
+RELEVANCE_WEIGHTS = {
+    Searchable.RelevanceChoices.HIGH: 3,
+    Searchable.RelevanceChoices.MEDIUM: 2,
+    Searchable.RelevanceChoices.LOW: 1,
+}
 
 
 @dataclass(frozen=True)
@@ -18,6 +26,7 @@ class RelatedContentItem:
     title: str
     url: str
     score: int
+    shared_tags: int
     date: date | datetime | None = None
     image_url: str = ""
 
@@ -71,8 +80,8 @@ def get_related_content(instance, request, *, limit=None):
 
     Candidates are collected from every concrete ``Searchable`` model owning a
     ``tags`` field, through ``get_search_queryset(request)`` so that the access
-    policy of each model is honoured, and ranked by the number of tags shared
-    with ``instance``, then by date. The instance itself is never suggested.
+    policy of each model is honoured. Candidates are ranked by shared tags and
+    relevance, then by date. The instance itself is never suggested.
     """
     if limit is None:
         limit = settings.RELATED_CONTENT_RESULTS
@@ -88,11 +97,25 @@ def get_related_content(instance, request, *, limit=None):
             queryset = queryset.exclude(pk=instance.pk)
         queryset = (
             queryset.annotate(
-                related_score=Count(
+                shared_tags=Count(
                     "tags",
                     filter=Q(tags__in=tag_ids),
                     distinct=True,
-                )
+                ),
+                relevance_score=Case(
+                    *(
+                        When(relevance=value, then=Value(weight))
+                        for value, weight in RELEVANCE_WEIGHTS.items()
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ),
+            )
+            .annotate(
+                related_score=(
+                    F("shared_tags") * Value(TAG_WEIGHT)
+                    + F("relevance_score")
+                ),
             )
             .order_by("-related_score", "pk")
             .distinct()
@@ -105,6 +128,7 @@ def get_related_content(instance, request, *, limit=None):
                     title=getattr(related, "title", "") or str(related),
                     url=related.get_absolute_url(),
                     score=related.related_score,
+                    shared_tags=related.shared_tags,
                     date=_item_date(related),
                     image_url=_image_url(related),
                 )

@@ -1,5 +1,7 @@
 from django.db import models
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import gettext_lazy as _
+
 
 class Searchable(models.Model):
     """
@@ -22,6 +24,18 @@ class Searchable(models.Model):
                                       by the child model.
     """
     search_fields = []
+
+    class RelevanceChoices(models.TextChoices):
+        HIGH = "high", _("high")
+        MEDIUM = "medium", _("medium")
+        LOW = "low", _("low")
+
+    relevance = models.CharField(
+        max_length=10,
+        choices=RelevanceChoices.choices,
+        default=RelevanceChoices.MEDIUM,
+        verbose_name=_("relevance"),
+    )
 
     class Meta:
         abstract = True

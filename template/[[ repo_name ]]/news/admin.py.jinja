@@ -12,6 +12,7 @@ class NewsArticleAdmin([%% if use_translations %%]TranslationAdmin[%% else %%]ad
     list_display = (
         "title",
         "publication_date",
+        "relevance",
         "is_featured",
         "status",
     )
@@ -45,7 +46,7 @@ class NewsArticleAdmin([%% if use_translations %%]TranslationAdmin[%% else %%]ad
         ),
         (_("Content"), {"fields": ("abstract", "content"), "classes": ("tab-fs-content",)}),
         (_("Media"), {"fields": ("image", "alt_text", "subject_location"), "classes": ("tab-fs-media",)}),
-        (_("Classification"), {"fields": ("tags",), "classes": ("tab-fs-classification",)}),
+        (_("Classification"), {"fields": ("relevance", "tags"), "classes": ("tab-fs-classification",)}),
         (_("SEO"), {"fields": ("meta_title", "meta_description"), "classes": ("tab-fs-seo",)}),
         (_("Metadata"), {"fields": ("created", "modified"), "classes": ("tab-fs-meta",)}),
     )

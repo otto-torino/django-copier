@@ -14,7 +14,7 @@
                         <time class="text-sm text-base-content/60" datetime="{{ item.date|date:'Y-m-d' }}">{{ item.date|date:"SHORT_DATE_FORMAT" }}</time>
                     {% endif %}
                     {% if user.is_superuser %}
-                        <span class="badge badge-ghost badge-sm">{% trans "Shared tags" %}: {{ item.score }}</span>
+                        <span class="badge badge-ghost badge-sm">{% trans "Shared tags" %}: {{ item.shared_tags }}</span>
                     {% endif %}
                 </li>
             {% endfor %}

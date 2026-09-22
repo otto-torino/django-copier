@@ -147,7 +147,9 @@ in the related content suggestions. `search_app.related.get_related_content`
 collects candidates across those models through their
 `get_search_queryset(request)` policy, so only the content the current request
 may discover is suggested, ranks them by the number of tags shared with the
-current object and then by date, and drops the object itself.
+current object, relevance and then date, and drops the object itself. One
+additional shared tag always outweighs the difference between high and low
+relevance.
 
 Suggestions are rendered by the `related_content_widget` template tag, already
 included in the page[%% if use_news %%], news article[%% endif %%][%% if use_events %%], event[%% endif %%] detail templates:

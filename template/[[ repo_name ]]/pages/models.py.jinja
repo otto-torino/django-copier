@@ -51,16 +51,6 @@ class Page(TimeStampedModel, Searchable):
         (ARCHIVED, _("archived")),
     )
 
-    HIGH_RELEVANCE = 1
-    MEDIUM_RELEVANCE = 2
-    LOW_RELEVANCE = 3
-
-    RELEVANCE_CHOICES = (
-        (HIGH_RELEVANCE, _("high")),
-        (MEDIUM_RELEVANCE, _("medium")),
-        (LOW_RELEVANCE, _("low")),
-    )
-
     parent = models.ForeignKey(
         "self",
         verbose_name=_("parent"),
@@ -131,13 +121,6 @@ class Page(TimeStampedModel, Searchable):
     )
     sites = models.ManyToManyField(Site, verbose_name=_("sites"))
     status = models.IntegerField(choices=STATUS_CHOICES, default=DRAFT)
-    relevance = models.IntegerField(
-        verbose_name=_("relevance"),
-        help_text=_("priority level for searches"),
-        choices=RELEVANCE_CHOICES,
-        default=2,
-    )
-
     # seo
     meta_title = models.CharField(
         _("meta title"),

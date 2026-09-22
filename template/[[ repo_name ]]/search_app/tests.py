@@ -25,6 +25,16 @@ from .views import (
 
 
 class SearchableTests(SimpleTestCase):
+    def test_relevance_defaults_to_medium(self):
+        field = Searchable._meta.get_field("relevance")
+
+        self.assertEqual(field.max_length, 10)
+        self.assertEqual(field.default, Searchable.RelevanceChoices.MEDIUM)
+        self.assertEqual(
+            dict(field.choices),
+            {"high": "high", "medium": "medium", "low": "low"},
+        )
+
     def test_search_queryset_must_be_defined_explicitly(self):
         with self.assertRaisesMessage(
             ImproperlyConfigured,
@@ -153,12 +163,37 @@ class RelatedContentTests(TestCase):
             [item.title for item in results],
             ["Closest page", "Loosest page"],
         )
-        self.assertEqual([item.score for item in results], [2, 1])
+        self.assertEqual([item.shared_tags for item in results], [2, 1])
+        self.assertEqual([item.score for item in results], [8, 5])
         self.assertEqual(results[0].kind, "page")
         self.assertEqual(
             results[0].url,
             Page.objects.get(url="/closest/").get_absolute_url(),
         )
+
+    def test_related_content_uses_relevance_to_break_tag_ties(self):
+        tag = Tag.objects.create(name="Security")
+        source = self._create_page("/source/", "Source page", [tag])
+        self._create_page(
+            "/low/",
+            "Low relevance",
+            [tag],
+            relevance=Searchable.RelevanceChoices.LOW,
+        )
+        self._create_page(
+            "/high/",
+            "High relevance",
+            [tag],
+            relevance=Searchable.RelevanceChoices.HIGH,
+        )
+
+        results = get_related_content(source, self.request)
+
+        self.assertEqual(
+            [item.title for item in results],
+            ["High relevance", "Low relevance"],
+        )
+        self.assertEqual([item.score for item in results], [6, 4])
 
     def test_related_content_hides_items_the_request_cannot_discover(self):
         tag = Tag.objects.create(name="Security")
