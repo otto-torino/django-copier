@@ -3,3 +3,178 @@
 
 /* Scan project templates, Python and JavaScript for Tailwind class names. */
 @source "../../../**/*.{html,py,js}";
+
+/*
+ * Shared typographic defaults.
+ *
+ * Keep these rules element-based so content written directly in templates and
+ * HTML rendered by rich-text editors have the same visual language. Component
+ * classes and Tailwind utilities can override them when needed.
+ */
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-block: 1.5em 0.6em;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+  }
+
+  h3 {
+    font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  }
+
+  h4 {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+  }
+
+  h5 {
+    font-size: 1.125rem;
+  }
+
+  h6 {
+    font-size: 1rem;
+    letter-spacing: 0;
+  }
+
+  :where(h1, h2, h3, h4, h5, h6):first-child {
+    margin-block-start: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  dl,
+  blockquote,
+  pre,
+  table,
+  figure {
+    margin-block: 0 1rem;
+  }
+
+  ul,
+  ol {
+    padding-inline-start: 1.5rem;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  :where(ul, ol) :where(ul, ol) {
+    margin-block: 0.5rem 0;
+  }
+
+  li + li {
+    margin-block-start: 0.25rem;
+  }
+
+  dt {
+    font-weight: 700;
+  }
+
+  dd {
+    margin-inline-start: 1.5rem;
+  }
+
+  a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+  }
+
+  a:hover {
+    text-decoration-thickness: 0.14em;
+  }
+
+  strong,
+  b {
+    font-weight: 700;
+  }
+
+  blockquote {
+    border-inline-start: 0.25rem solid currentColor;
+    padding-inline-start: 1rem;
+    font-style: italic;
+    opacity: 0.8;
+  }
+
+  code,
+  kbd,
+  samp {
+    border-radius: 0.25rem;
+    background-color: color-mix(in oklab, currentColor 8%, transparent);
+    padding: 0.125em 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+  }
+
+  pre {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+    background-color: color-mix(in oklab, currentColor 8%, transparent);
+    padding: 1rem;
+  }
+
+  pre code {
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  hr {
+    margin-block: 2rem;
+    border: 0;
+    border-block-start: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border-block-end: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+    padding: 0.625rem 0.75rem;
+    text-align: start;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: 700;
+  }
+
+  figcaption {
+    margin-block-start: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    opacity: 0.75;
+  }
+}
