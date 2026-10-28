@@ -123,14 +123,17 @@ mkdir -p "$backup_dir"
 chmod 700 "$backup_dir"
 
 # A failing pg_dump must not be hidden by gzip. Parse the compressed custom
-# archive with pg_restore before publishing it locally or remotely.
+# archive with pg_restore before publishing it locally or remotely. From a pipe
+# pg_restore --list stops after the table of contents, so the rest of the
+# stream is drained: gzip then reads the whole file and checks its CRC instead
+# of dying of SIGPIPE once the dump outgrows the pipe buffers.
 (
   set -o pipefail
   docker exec "$app_container" sh -c \
     'PGPASSWORD="$DB_PASSWORD" pg_dump --host 127.0.0.1 --username "$DB_USER" --dbname "$DB_NAME" --format custom' \
     | gzip -9 > "$backup_tmp"
   gzip -dc "$backup_tmp" \
-    | docker exec -i "$app_container" pg_restore --list >/dev/null
+    | docker exec -i "$app_container" sh -c 'pg_restore --list >/dev/null && cat >/dev/null'
 )
 
 mv "$backup_tmp" "$backup_file"
