@@ -50,7 +50,10 @@ urlpatterns = [
 
     # robots
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'), name='robots'),
-]
+[%% if use_cabinet %%]
+    # the permalinks lead to a file, which has no language
+    path("cabinet/", include("cabinet.urls", namespace="cabinet")),
+[%% endif %%]]
 
 
 # User-facing URL patterns that can be translated
@@ -64,10 +67,6 @@ translatable_urlpatterns = [
     [%% endif %%]
     path('editor-js/', include('editor_js.urls')),
     path("lineup/", include("lineup.urls")),
-    [%% if use_cabinet %%]
-    # cabinet
-    path("cabinet/", include("cabinet.urls", namespace="cabinet")),
-    [%% endif %%]
 
     # home
     path('',TemplateView.as_view(template_name='home.html'), name='home'),
