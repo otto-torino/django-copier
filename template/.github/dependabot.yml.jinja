@@ -13,6 +13,10 @@ updates:
     directory: /[[ repo_name ]]
     schedule:
       interval: weekly
+    ignore:
+      # django-baton supports up to Django 6.0: 6.1 breaks the admin breadcrumbs
+      - dependency-name: django
+        versions: [">=6.1"]
     groups:
       python:
         patterns:

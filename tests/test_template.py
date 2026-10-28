@@ -862,7 +862,7 @@ class RenderingTests(unittest.TestCase):
 
             app = destination / "upgrade-project"
             self.assertIn("Local upgrade note.", readme.read_text())
-            self.assertIn("django==6.0.7", (app / "requirements/common.txt").read_text())
+            self.assertIn("django==6.0.9", (app / "requirements/common.txt").read_text())
             self.assertIn(
                 "POSTGRES_SEARCH_CONFIGS",
                 (app / "search_app/views.py").read_text(),
