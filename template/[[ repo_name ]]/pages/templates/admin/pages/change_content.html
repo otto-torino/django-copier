@@ -71,12 +71,12 @@
                     {% for content_block in page.content_blocks.for_content %}
                         {% with page_admin.content_models|get_item:content_block.content_object.class_name as model %}
                             <div data-id="{{ content_block.id }}" class="content-block d-block ">
-                                <div class="{% if content_block.enabled %}bg-primary-subtle{% else %}bg-dark-subtle{% endif %} p-2 my-2 d-flex gap-6 justify-content-between align-items-center">
+                                <div class="{% if content_block.enabled %}bg-primary-subtle{% else %}bg-danger-subtle{% endif %} p-2 my-2 d-flex gap-6 justify-content-between align-items-center">
                                     <div class="d-flex flex-column overflow-hidden">
                                         <div class="text-truncate">
                                             {% trans "Name" %}: {{ content_block.name }}
                                             {% if not content_block.enabled %}
-                                                <span class="ms-2">({% trans 'disabled' %})</span>
+                                                <span class="ms-2 fw-semibold text-danger-emphasis">({% trans 'disabled' %})</span>
                                             {% endif %}
                                         </div>
                                         <div class="text-truncate">{% trans "Content type" %}: {{ model.get_content_label }}</div>
@@ -116,12 +116,12 @@
                     {% for content_block in page.content_blocks.for_layout %}
                         {% with page_admin.content_models|get_item:content_block.content_object.class_name as model %}
                             <div data-id="{{ content_block.id }}" class="content-block d-block ">
-                                <div class="{% if content_block.enabled %}bg-primary-subtle{% else %}bg-dark-subtle{% endif %} p-2 my-2 d-flex gap-6 justify-content-between align-items-center">
+                                <div class="{% if content_block.enabled %}bg-primary-subtle{% else %}bg-danger-subtle{% endif %} p-2 my-2 d-flex gap-6 justify-content-between align-items-center">
                                     <div class="d-flex flex-column overflow-hidden">
                                         <div class="text-truncate">
                                             {% trans "Name" %}: {{ content_block.name }}
                                             {% if not content_block.enabled %}
-                                                <span class="ms-2">({% trans 'disabled' %})</span>
+                                                <span class="ms-2 fw-semibold text-danger-emphasis">({% trans 'disabled' %})</span>
                                             {% endif %}
                                         </div>
                                         <div class="text-truncate">{% trans "Content type" %}: {{ model.get_content_label }}</div>

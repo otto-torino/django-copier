@@ -65,7 +65,7 @@ def render_page(request, p):
         template = loader.get_template(DEFAULT_TEMPLATE)
 
     date = p.modified
-    for block in p.content_blocks.for_content():
+    for block in p.content_blocks.for_content().enabled():
         if block.modified > date:
             date = block.modified
 

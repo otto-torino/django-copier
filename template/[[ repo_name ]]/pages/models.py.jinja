@@ -248,7 +248,11 @@ class PageContent(TimeStampedModel):
     object_id = models.PositiveIntegerField(blank=True, null=True, editable=False)
     content_object = GenericForeignKey("content_type", "object_id")
     position = models.IntegerField(_("ordering"), editable=False)
-    enabled = models.BooleanField(_("block enabled"), default=True)
+    enabled = models.BooleanField(
+        _("block enabled"),
+        default=True,
+        help_text=_("a disabled block is not shown on the page."),
+    )
     full_width = models.BooleanField(
         _("full width"),
         default=False,

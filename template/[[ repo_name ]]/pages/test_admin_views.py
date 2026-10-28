@@ -112,3 +112,45 @@ class SaveContentPositionTests(TestCase):
         response = self.client.get(self.save_url())
 
         self.assertEqual(response.status_code, 405)
+
+
+class EditContentsTests(TestCase):
+    def setUp(self):
+        self.page = Page.objects.create(url="/page/", title="Page", status=Page.PUBLISHED)
+        content_type = ContentType.objects.get_for_model(PageContentText)
+        for position, (name, enabled, layout_content) in enumerate(
+            (
+                ("Enabled block", True, False),
+                ("Disabled block", False, False),
+                ("Disabled layout block", False, True),
+            )
+        ):
+            block = PageContentText.objects.create(
+                page=self.page,
+                content_type=content_type,
+                name=name,
+                enabled=enabled,
+                layout_content=layout_content,
+                position=position,
+            )
+            # the admin stores the id to find the specific block from the base one
+            block.object_id = block.pk
+            block.save()
+        self.client.force_login(
+            get_user_model().objects.create_superuser(
+                username="admin",
+                password="password",
+                email="admin@example.com",
+            )
+        )
+
+    def test_disabled_blocks_are_listed_in_red(self):
+        response = self.client.get(
+            reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk})
+        )
+
+        self.assertContains(response, "Enabled block")
+        self.assertContains(response, "Disabled block")
+        self.assertContains(response, "Disabled layout block")
+        self.assertContains(response, "bg-primary-subtle", count=1)
+        self.assertContains(response, "bg-danger-subtle", count=2)

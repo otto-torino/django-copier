@@ -3,11 +3,15 @@ from django.db.models import Q
 
 
 class PageContentQuerySet(models.QuerySet):
+    def enabled(self):
+        return self.filter(enabled=True)
+
+    # the disabled blocks too: the admin lists them
     def for_content(self):
-        return self.filter(layout_content=False, enabled=True)
+        return self.filter(layout_content=False)
 
     def for_layout(self):
-        return self.filter(layout_content=True, enabled=True)
+        return self.filter(layout_content=True)
 
 
 class PageQuerySet(models.QuerySet):

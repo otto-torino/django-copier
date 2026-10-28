@@ -1,12 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.template import Context
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.translation import override
 
-from .models import Page
+from .models import Page, PageContentText
 from .sitemap import PageSitemap
 from .templatetags.pages_tags import PageNode
 
@@ -173,3 +174,35 @@ class PageAccessTests(TestCase):
         node.render(context)
 
         self.assertEqual(set(context["visible_pages"]), {public, selected})
+
+
+class PageContentBlocksTests(TestCase):
+    def setUp(self):
+        site = Site.objects.get_current()
+        site.domain = "testserver"
+        site.save()
+        Site.objects.clear_cache()
+        self.page = Page.objects.create(url="/about/", title="About", status=Page.PUBLISHED)
+        self.page.sites.add(site)
+        content_type = ContentType.objects.get_for_model(PageContentText)
+        for position, (text, enabled) in enumerate(
+            (("Visible text", True), ("Hidden text", False))
+        ):
+            block = PageContentText.objects.create(
+                page=self.page,
+                content_type=content_type,
+                name=text,
+                content={"blocks": [{"type": "paragraph", "data": {"text": text}}]},
+                enabled=enabled,
+                position=position,
+            )
+            # the admin stores the id to find the specific block from the base one
+            block.object_id = block.pk
+            block.save()
+
+    def test_disabled_blocks_are_not_rendered(self):
+        prefix = [%% if use_translations %%]"/[[ default_language ]]"[%% else %%]""[%% endif %%]
+        response = self.client.get(f"{prefix}/p/about/")
+
+        self.assertContains(response, "Visible text")
+        self.assertNotContains(response, "Hidden text")

@@ -54,12 +54,10 @@
             <div class="flex justify-center mt-6 text-gray-400 text-sm">{% trans 'Last updated:' %} {{ updated|naturaltime }}</div>
         {% endif %}
         <div id="content-blocks" class="flex flex-col py-4 text-lg">
-            {% for content_block in page.content_blocks.for_content %}
-                {% if content_block.enabled %}
-                    {% with template=content_block.content_object.get_render_template %}
-                        {% include template with obj=content_block.content_object request=request only %}
-                    {% endwith %}
-                {% endif %}
+            {% for content_block in page.content_blocks.for_content.enabled %}
+                {% with template=content_block.content_object.get_render_template %}
+                    {% include template with obj=content_block.content_object request=request only %}
+                {% endwith %}
             {% endfor %}
         </div>
         {% related_content_widget related_content %}
