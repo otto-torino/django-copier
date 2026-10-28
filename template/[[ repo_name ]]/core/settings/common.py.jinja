@@ -181,6 +181,8 @@ LANGUAGES = (
     (LANGUAGE_CODE, LANG_INFO.get(LANGUAGE_CODE, {}).get("name_local", LANGUAGE_CODE)),
 )
 [%% endif %%]
+# project-wide catalogs, ahead of the apps and of Django: the admin JS strings Django leaves untranslated
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 TIME_ZONE = [[ timezone | tojson ]]
 USE_I18N = True
