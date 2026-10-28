@@ -1,3 +1,5 @@
+import html
+
 from django.apps import apps
 from django.conf import settings
 from django.contrib.postgres.search import (
@@ -7,10 +9,14 @@ from django.contrib.postgres.search import (
     SearchVector,
 )
 from django.core.paginator import Paginator
+from django.db import connection
+from django.db.models import F, Func, TextField
+from django.db.models.constants import LOOKUP_SEP
 from django.shortcuts import render
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language
+from editor_js.fields import EditorJSField
 
 from .models import Searchable
 
@@ -48,9 +54,75 @@ def get_postgres_search_config(language_code):
     )
 
 
+class EditorJsText(Func):
+    """
+    Plain text of an Editor.js document: the strings typed by the editors
+    (text, captions, list items, table cells, code) in document order,
+    without the JSON structure around them nor the inline markup.
+    """
+
+    output_field = TextField()
+    # One set-returning function only: a lateral join between two of them
+    # makes the planner estimate millions of rows per document, which turns
+    # on the JIT compiler and adds a fixed ~100ms to every search query.
+    # The path takes the text keys at any depth, plus the ``items`` of lists
+    # saved in the older format, where they are bare strings; the items of
+    # the newer format are objects, reached through their ``content`` key.
+    # Descending at most two levels reaches the cells of a table.
+    template = (
+        "(SELECT regexp_replace(string_agg(value #>> '{}', ' ' ORDER BY ord), "
+        "'<[^>]*>', ' ', 'g') "
+        "FROM jsonb_path_query(%(expressions)s, "
+        "'strict $.blocks[*].data.** ? (@.type() == \"object\").keyvalue() "
+        "? (@.key == \"text\" || @.key == \"caption\" "
+        "|| @.key == \"content\" || @.key == \"code\" "
+        "|| (@.key == \"items\" "
+        "&& !(exists (@.value[*] ? (@.type() == \"object\")))))"
+        ".value.**{0 to 2} ? (@.type() == \"string\")', '{}', true) "
+        "WITH ORDINALITY AS editor_js_text(value, ord))"
+    )
+
+
+def has_search_terms(query_text, pg_search_config):
+    """
+    Whether the query keeps any term once the configuration drops its stop
+    words: "chi siamo" is made of Italian stop words only, and an empty query
+    matches nothing.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT numnode(websearch_to_tsquery(%s::regconfig, %s))",
+            [pg_search_config, query_text],
+        )
+        return cursor.fetchone()[0] > 0
+
+
+def get_search_expression(model, field_path):
+    """Return the expression indexed for a ``search_fields`` entry."""
+    field = None
+    for name in field_path.split(LOOKUP_SEP):
+        field = model._meta.get_field(name)
+        model = field.related_model or model
+    if isinstance(field, EditorJSField):
+        return EditorJsText(F(field_path))
+    return F(field_path)
+
+
+def repeats_title(headline, item):
+    """
+    Whether a headline only repeats text already shown as the title of the
+    result, like the title itself or the first name of an expert.
+    """
+    text = headline.replace(HIGHLIGHT_START, "").replace(HIGHLIGHT_STOP, "")
+    title = str(getattr(item, "title", None) or item)
+    return text.strip().casefold() in title.casefold()
+
+
 def render_search_headline(value):
     """Escape indexed content while preserving our controlled highlight tags."""
-    escaped = str(escape(value or ""))
+    # Editor.js text carries HTML entities (&nbsp;, &amp;...): decode them
+    # before escaping, or they would be shown literally.
+    escaped = str(escape(html.unescape(value or "")))
     return mark_safe(
         escaped.replace(HIGHLIGHT_START, HIGHLIGHT_START_HTML).replace(
             HIGHLIGHT_STOP,
@@ -74,6 +146,9 @@ def search_view(request):
     }
 
     if query_text:
+        if not has_search_terms(query_text, pg_search_config):
+            # Search the words as they are, without stemming nor stop words.
+            pg_search_config = "simple"
         search_query = SearchQuery(
             query_text,
             config=pg_search_config,
@@ -97,11 +172,16 @@ def search_view(request):
 
         for model in searchable_models:
             search_fields = model.get_search_fields()
-            search_vector = SearchVector(*search_fields, config=pg_search_config)
+            search_expressions = {
+                field: get_search_expression(model, field) for field in search_fields
+            }
+            search_vector = SearchVector(
+                *search_expressions.values(), config=pg_search_config
+            )
 
             headline_annotations = {
                 f"headline_{field}": SearchHeadline(
-                    field,
+                    search_expressions[field],
                     search_query,
                     config=pg_search_config,
                     **headline_options,
@@ -125,19 +205,16 @@ def search_view(request):
             if len(model_results) > result_limit:
                 results_truncated = True
             for item in model_results[:result_limit]:
-                best_headline = ""
-                for field in search_fields:
-                    headline_content = getattr(item, f"headline_{field}")
-                    if headline_content and HIGHLIGHT_START in headline_content:
-                        best_headline = headline_content
-                        break
-
-                if not best_headline:
-                    for field in search_fields:
-                        fallback_content = getattr(item, f"headline_{field}")
-                        if fallback_content:
-                            best_headline = fallback_content
-                            break
+                headlines = [
+                    headline
+                    for field in search_fields
+                    if (headline := getattr(item, f"headline_{field}"))
+                    and not repeats_title(headline, item)
+                ]
+                best_headline = next(
+                    (h for h in headlines if HIGHLIGHT_START in h),
+                    headlines[0] if headlines else "",
+                )
 
                 item.headline = render_search_headline(best_headline)
                 ranked_results.append((model_verbose_name_plural, item))

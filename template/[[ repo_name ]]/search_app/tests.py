@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.core.exceptions import ImproperlyConfigured
 from django.template import Context, Template
@@ -11,7 +12,7 @@ from django.test import (
 from django.urls import reverse
 from django.utils.translation import override
 
-from pages.models import Page
+from pages.models import Page, PageContentText
 from tagall.models import Tag
 
 from .models import Searchable
@@ -125,6 +126,66 @@ class SearchViewTests(TestCase):
         self.assertEqual(response.context["total_results_count"], 2)
         self.assertIs(response.context["results_truncated"], True)
         self.assertContains(response, "Showing the first 2 results")
+
+    def test_query_made_of_stop_words_only_is_searched_as_is(self):
+        page = Page.objects.create(
+            url="/chi-siamo/",
+            title="Chi siamo",
+            status=Page.PUBLISHED,
+        )
+        page.sites.add(self.site)
+
+        with override("it"):
+            response = self.client.get(
+                reverse("search_app:search"),
+                {"q": "chi siamo"},
+            )
+
+        self.assertEqual(response.context["total_results_count"], 1)
+        self.assertContains(response, "Chi siamo")
+        # The title is not repeated as the headline.
+        [results] = response.context["grouped_results"].values()
+        self.assertEqual(results[0].headline, "")
+
+    def test_editor_js_fields_are_searched_as_plain_text(self):
+        page = Page.objects.create(
+            url="/editor/",
+            title="Editor page",
+            status=Page.PUBLISHED,
+        )
+        page.sites.add(self.site)
+        PageContentText.objects.create(
+            page=page,
+            content_type=ContentType.objects.get_for_model(PageContentText),
+            name="Text",
+            position=0,
+            content={
+                "time": 1,
+                "version": "2.30.7",
+                "blocks": [
+                    {
+                        "type": "paragraph",
+                        "data": {"text": "Una <b>politica</b>&nbsp;estera"},
+                    },
+                    {
+                        "type": "list",
+                        "data": {"style": "unordered", "items": ["europea"]},
+                    },
+                ],
+            },
+        )
+
+        response = self.client.get(reverse("search_app:search"), {"q": "europea"})
+        self.assertEqual(response.context["total_results_count"], 1)
+        [results] = response.context["grouped_results"].values()
+        headline = results[0].headline
+        self.assertIn("politica \xa0estera", headline)
+        self.assertNotIn("&lt;b&gt;", headline)
+        self.assertNotIn("blocks", headline)
+
+        # The JSON structure of the document is not indexed.
+        response = self.client.get(reverse("search_app:search"), {"q": "paragraph"})
+        self.assertEqual(response.context["total_results_count"], 0)
 
 
 class RelatedContentTests(TestCase):
