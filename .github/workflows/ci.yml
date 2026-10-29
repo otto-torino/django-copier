@@ -117,6 +117,9 @@ jobs:
       - name: Bootstrap the generated project
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make bootstrap
+      - name: Check the generated migrations are complete
+        working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
+        run: docker compose exec -T app python manage.py makemigrations --check --dry-run
       - name: Run generated Django tests
         working-directory: ${{ runner.temp }}/${{ matrix.repo_name }}
         run: make test

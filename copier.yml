@@ -22,6 +22,7 @@ _exclude:
   - "[[ repo_name ~ '/events/translation.py' if not use_translations else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/tagall/translation.py' if not use_translations else '.copier-never-match' ]]"
   - "[[ repo_name ~ '/core/translation.py' if not use_translations else '.copier-never-match' ]]"
+  - "[[ repo_name ~ '/core/lineup_migrations' if not use_translations else '.copier-never-match' ]]"
 
 _tasks:
   - command:

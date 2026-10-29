@@ -1,0 +1,57 @@
+"""The fields core/translation.py adds to the menu items of lineup, one per language.
+
+The databases made before this migration may already have the columns, created
+by ``sync_translation_fields``: they are added only when missing.
+"""
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('lineup', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+[%%- for language in languages | sort %%]
+                migrations.AddField(
+                    model_name='menuitem',
+                    name='label_[[ language ]]',
+                    field=models.CharField(help_text='Display name on the website.', max_length=50, null=True, verbose_name='label'),
+                ),
+[%%- endfor %%]
+[%%- for language in languages | sort %%]
+                migrations.AddField(
+                    model_name='menuitem',
+                    name='title_[[ language ]]',
+                    field=models.CharField(blank=True, max_length=255, null=True, verbose_name='title'),
+                ),
+[%%- endfor %%]
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql=(
+                        'ALTER TABLE lineup_menuitem'
+[%%- for language in languages | sort %%]
+                        ' ADD COLUMN IF NOT EXISTS label_[[ language ]] varchar(50) NULL,'
+[%%- endfor %%]
+[%%- for language in languages | sort %%]
+                        ' ADD COLUMN IF NOT EXISTS title_[[ language ]] varchar(255) NULL[[ ',' if not loop.last else '' ]]'
+[%%- endfor %%]
+                    ),
+                    reverse_sql=(
+                        'ALTER TABLE lineup_menuitem'
+[%%- for language in languages | sort %%]
+                        ' DROP COLUMN IF EXISTS label_[[ language ]],'
+[%%- endfor %%]
+[%%- for language in languages | sort %%]
+                        ' DROP COLUMN IF EXISTS title_[[ language ]][[ ',' if not loop.last else '' ]]'
+[%%- endfor %%]
+                    ),
+                ),
+            ],
+        ),
+    ]

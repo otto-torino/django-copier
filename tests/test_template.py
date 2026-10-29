@@ -605,6 +605,21 @@ class RenderingTests(unittest.TestCase):
                         f'    "{language}",' for language in languages
                     )
                     self.assertIn(rendered_languages, settings)
+                # the translated fields of lineup have their migrations in the project
+                lineup_migrations = app / "core/lineup_migrations"
+                self.assertEqual(lineup_migrations.is_dir(), translations)
+                self.assertEqual("MIGRATION_MODULES" in settings, translations)
+                if translations:
+                    translated = (
+                        lineup_migrations / "0002_menuitem_translations.py"
+                    ).read_text()
+                    for language in languages:
+                        self.assertIn(f"name='label_{language}'", translated)
+                        self.assertIn(f"name='title_{language}'", translated)
+                        self.assertIn(
+                            f"ADD COLUMN IF NOT EXISTS label_{language} varchar(50)",
+                            translated,
+                        )
                 self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
                 self.assert_shell_scripts(destination)

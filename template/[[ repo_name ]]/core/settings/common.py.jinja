@@ -116,6 +116,13 @@ INSTALLED_APPS = (
 
     'baton.autodiscover',
 )
+[%% if use_translations %%]
+# core/translation.py translates the menu items of lineup: the migrations of the
+# translated fields, which lineup cannot ship, live in the project
+MIGRATION_MODULES = {
+    'lineup': 'core.lineup_migrations',
+}
+[%% endif %%]
 
 MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',

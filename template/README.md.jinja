@@ -140,7 +140,15 @@ Review the resulting changes and resolve any reported conflicts before
 committing the update. Copier does not recreate or overwrite the ignored local
 `[[ repo_name ]]/.env` file during updates.
 
-## Related content
+[%% if use_translations %%]## Translated menu items
+
+`core/translation.py` translates the menu items of django-lineup, a third-party
+app: the migrations of their translated fields cannot ship with lineup and live
+in `core/lineup_migrations` (`MIGRATION_MODULES`). When an update of
+django-lineup brings a new migration, copy it there: `python manage.py
+makemigrations --check` reports it as missing.
+
+[%% endif %%]## Related content
 
 Every model inheriting from `Searchable` and owning a `tags` field takes part
 in the related content suggestions. `search_app.related.get_related_content`
