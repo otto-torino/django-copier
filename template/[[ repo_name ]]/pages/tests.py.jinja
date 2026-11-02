@@ -206,3 +206,15 @@ class PageContentBlocksTests(TestCase):
 
         self.assertContains(response, "Visible text")
         self.assertNotContains(response, "Hidden text")
+
+    def test_admin_lists_the_page_contents(self):
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+        response = self.client.get(
+            reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk})
+        )
+
+        self.assertContains(response, "Visible text")
+        self.assertContains(response, "Hidden text")
