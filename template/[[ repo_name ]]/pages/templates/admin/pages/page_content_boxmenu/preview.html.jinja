@@ -17,7 +17,7 @@
                         {% endthumbnail %}
                     {% else %}
                         <div onclick="window.location.assign('{{ im.link }}');"
-                             class="h-auto w-100 p-3 min-w-[13rem] {% if object.rectangular %}max-h-[13rem]{% endif %} drop-shadow-md  relative flex justify-center items-center bg-cover {% if object.zoom %}transform transition duration-200 hover:scale-105{% endif %} cursor-pointer"
+                             class="h-auto w-100 p-3 min-w-[13rem] {% if object.rectangular %}max-h-[13rem]{% endif %} shadow-md  relative flex justify-center items-center bg-cover {% if object.zoom %}transform transition duration-200 hover:scale-105{% endif %} cursor-pointer"
                              style="border-radius: {{ object.rounding }}px;
                                     aspect-ratio : 1 / 1;
                                     background-color:{{ im.bg_color }}">

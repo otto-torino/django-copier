@@ -9,11 +9,11 @@
         {% thumbnail im.file "400x400" crop=im.file.sorl as cropped %}
           <div 
             onclick="window.location.assign('{{ im.link }}');" 
-            class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} drop-shadow-md relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" 
+            class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} shadow-md relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" 
             style="border-radius: {{obj.rounding}}px; aspect-ratio : 1 / 1; {% if im.file and im.bg_color %} background:linear-gradient(0deg, {{im.bg_color}}80, {{im.bg_color}}80), url({{cropped.url}});{% elif im.file %} background-image: url({{cropped.url}}); {% else %} background-color:{{im.bg_color}}; {% endif %}">
         {% endthumbnail %}
       {% else %}
-        <div onclick="window.location.assign('{{ im.link }}');" class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} drop-shadow-md  relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" style="border-radius: {{obj.rounding}}px; aspect-ratio : 1 / 1; background-color:{{im.bg_color}};">
+        <div onclick="window.location.assign('{{ im.link }}');" class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} shadow-md  relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" style="border-radius: {{obj.rounding}}px; aspect-ratio : 1 / 1; background-color:{{im.bg_color}};">
       {% endif %}
           <div class="flex flex-col gap-5 items-center w-full">
             {% if im.icon %}
@@ -30,10 +30,10 @@
     <div class="mb-6 w-full max-w-full flex flex-col gap-5 items-center md:hidden">
     {% if im.file %}
       {% thumbnail im.file "800x200" crop=im.file.sorl as cropped %}
-        <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full drop-shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px;  {% if im.file and im.bg_color %} background:linear-gradient(0deg, {{im.bg_color}}80, {{im.bg_color}}80), url({{cropped.url}}); {% elif im.file %} background-image: url({{cropped.url}}); {% else %} background-color:{{im.bg_color}}; {% endif %}">
+        <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px;  {% if im.file and im.bg_color %} background:linear-gradient(0deg, {{im.bg_color}}80, {{im.bg_color}}80), url({{cropped.url}}); {% elif im.file %} background-image: url({{cropped.url}}); {% else %} background-color:{{im.bg_color}}; {% endif %}">
       {% endthumbnail %}
     {% else %}
-      <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full drop-shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px; background-color:{{im.bg_color}};">
+      <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px; background-color:{{im.bg_color}};">
     {% endif %}
         <div class="flex flex-row items-center">
           {% if im.icon %}
