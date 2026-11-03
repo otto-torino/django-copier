@@ -629,9 +629,14 @@ docker compose --env-file .env.deploy -f docker-compose.production.yml \
   --wait --wait-timeout 180
 ```
 
-`RUN_MIGRATIONS=0` also disables `sync_translation_fields` by default. Set
-`SYNC_TRANSLATION_FIELDS=1` explicitly only when you intentionally need the
-translation schema synchronization without the normal migration step.
+[%% if use_translations -%%]
+After `migrate`, the container runs `update_translation_fields`: a field that
+becomes translatable gets its original values copied into the default language
+column. `RUN_MIGRATIONS=0` skips both. The translated columns all come from the
+migrations, so `sync_translation_fields` is not run: it also fails on
+translated foreign keys.
+
+[%% endif -%%]
 
 Replace `PRODUCTION_PORT` with the value of
 `[[ repo_name | upper | replace('-', '_') ]]_PRODUCTION_PORT`.

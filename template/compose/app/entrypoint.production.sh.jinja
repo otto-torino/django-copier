@@ -111,13 +111,15 @@ fi
 
 if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
   run_as_django python manage.py migrate --noinput
+[%%- if use_translations %%]
+  # The translated columns all come from the migrations, lineup's included
+  # (core/lineup_migrations): no sync_translation_fields, which also looks
+  # for translated foreign keys without their _id suffix and fails on them.
+  # A field that becomes translatable starts with an empty default language
+  # column: copy the original value there. A no-op on the rows in sync.
+  run_as_django python manage.py update_translation_fields
+[%%- endif %%]
 fi
-
-[%% if use_translations -%%]
-if [ "${SYNC_TRANSLATION_FIELDS:-${RUN_MIGRATIONS:-1}}" = "1" ]; then
-  run_as_django python manage.py sync_translation_fields --noinput
-fi
-[%% endif -%%]
 
 if [ "${COLLECTSTATIC_ON_STARTUP:-1}" = "1" ]; then
   run_as_django python manage.py collectstatic --noinput

@@ -622,6 +622,24 @@ class RenderingTests(unittest.TestCase):
                             f"ADD COLUMN IF NOT EXISTS label_{language} varchar(50)",
                             translated,
                         )
+                # sync_translation_fields fails on translated foreign keys: the
+                # columns come from the migrations, the values from update
+                entrypoint = (
+                    destination / "compose/app/entrypoint.production.sh"
+                ).read_text()
+                self.assertNotIn("manage.py sync_translation_fields", entrypoint)
+                self.assertEqual(
+                    "manage.py update_translation_fields" in entrypoint,
+                    translations,
+                )
+                for compose_file in (
+                    "docker-compose.production.yml",
+                    "docker-compose.staging.yml",
+                ):
+                    self.assertNotIn(
+                        "SYNC_TRANSLATION_FIELDS",
+                        (destination / compose_file).read_text(),
+                    )
                 self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
                 self.assert_shell_scripts(destination)
