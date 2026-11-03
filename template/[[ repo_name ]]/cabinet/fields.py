@@ -24,6 +24,9 @@ class CabinetFileRawIdWidget(ForeignKeyRawIdWidget):
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
+        # The id is useless to editors: keep it in a hidden input and show the
+        # file name next to the lookup icon instead.
+        context["widget"]["type"] = "hidden"
         instance = getattr(self, "instance", None)
         context["cabinet"] = {
             "upload_form": UploadForm(
@@ -72,4 +75,13 @@ class CabinetForeignKey(models.ForeignKey):
         widget = kwargs.get("widget")
         if widget and isinstance(widget, ForeignKeyRawIdWidget):
             widget.__class__ = CabinetFileRawIdWidget
+            if not self.help_text:
+                kwargs.setdefault(
+                    "help_text",
+                    _(
+                        "Search an existing file with the magnifying glass, or "
+                        "upload a new one on the right after choosing the "
+                        "folder to save it in."
+                    ),
+                )
         return super().formfield(**kwargs)

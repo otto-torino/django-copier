@@ -26,8 +26,40 @@
 }
 
 .cabinet-inline-wrap .cabinet-inline-field {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, auto));
-    gap: 1rem;
+    display: flex;
+    flex-flow: row wrap;
+    gap: 0.75rem;
     align-items: center;
+}
+
+.cabinet-inline-wrap [hidden] {
+    display: none !important;
+}
+
+.cabinet-inline-wrap .cabinet-inline-empty {
+    font-weight: normal;
+    opacity: 0.6;
+}
+
+.cabinet-inline-wrap .cabinet-inline-clear {
+    border: 0;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.cabinet-inline-wrap .cabinet-inline-clear i {
+    font-size: 1.25rem;
+}
+
+.cabinet-inline-wrap .cabinet-inline-clear:hover {
+    opacity: 1;
+}
+
+.cabinet-inline-wrap .cabinet-inline-thumb {
+    max-width: 4rem;
+    max-height: 4rem;
 }

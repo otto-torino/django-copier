@@ -265,6 +265,19 @@ msgstr "Carica file trascinandoli nella lista qui sopra."
 msgid "Save"
 msgstr "Salva"
 
+msgid ""
+"Search an existing file with the magnifying glass, or upload a new one on "
+"the right after choosing the folder to save it in."
+msgstr ""
+"Cerca un file già caricato con la lente, oppure caricane uno nuovo a "
+"destra scegliendo prima la cartella in cui salvarlo."
+
+msgid "No file selected"
+msgstr "Nessun file selezionato"
+
+msgid "Remove"
+msgstr "Rimuovi"
+
 #~ msgid "image"
 #~ msgstr "immagine"
 

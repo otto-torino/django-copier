@@ -1,7 +1,13 @@
-<div class="cabinet-inline-wrap" data-url="{% url 'admin:cabinet_upload' %}">
+{% load i18n %}<div class="cabinet-inline-wrap" data-url="{% url 'admin:cabinet_upload' %}" data-info-url="{% url 'admin:cabinet_file_info' 0 %}">
   <div class="cabinet-inline-field">
-    {% include "admin/widgets/foreign_key_raw_id.html" %}
-    <img class="cabinet-inline-thumb" src="{% if cabinet.instance.image_file %}{{ cabinet.instance.image_file.url }}{% endif %}" alt="" style="max-width:4rem;max-height:4rem;margin-left:0.5rem;{% if not cabinet.instance.image_file %}display:none;{% endif %}" />
+    {% include 'django/forms/widgets/input.html' %}
+    {% if related_url %}<a href="{{ related_url }}" class="related-lookup" id="lookup_id_{{ widget.name }}" title="{{ link_title }}"></a>{% endif %}
+    <strong class="cabinet-inline-label">
+      <a class="cabinet-inline-link" href="{{ link_url }}"{% if not link_label %} hidden{% endif %}>{{ link_label }}</a>
+      <span class="cabinet-inline-empty"{% if link_label %} hidden{% endif %}>{% translate "No file selected" %}</span>
+    </strong>
+    <button type="button" class="cabinet-inline-clear" title="{% translate 'Remove' %}"{% if not link_label %} hidden{% endif %}><i class="material-symbols-outlined">delete</i></button>
+    <img class="cabinet-inline-thumb" src="{% if cabinet.instance.image_file %}{{ cabinet.instance.image_file.url }}{% endif %}" alt=""{% if not cabinet.instance.image_file %} hidden{% endif %} />
   </div>
   <div class="cabinet-inline-upload">
     {{ cabinet.upload_form.folder }}

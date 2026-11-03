@@ -370,7 +370,12 @@ class FileAdminBase(FolderAdminMixin):
                 "upload/",
                 self.admin_site.admin_view(self.upload),
                 name="cabinet_upload",
-            )
+            ),
+            path(
+                "<int:pk>/info/",
+                self.admin_site.admin_view(self.file_info),
+                name="cabinet_file_info",
+            ),
         ] + super().get_urls()
 
     def folders_annotate_counts(self, folders):
@@ -500,12 +505,26 @@ class FileAdminBase(FolderAdminMixin):
         f.file = form.cleaned_data["file"]
         f.save()
 
-        return JsonResponse({
-            "success": True,
+        return JsonResponse({"success": True, **self.file_json(f)})
+
+    def file_info(self, request, pk):
+        f = get_object_or_404(self.model, pk=pk)
+        if not self.has_view_permission(request, f):
+            raise PermissionDenied
+        return JsonResponse(self.file_json(f))
+
+    def file_json(self, f):
+        opts = self.model._meta
+        return {
             "pk": f.pk,
             "name": str(f),
+            "url": reverse(
+                f"admin:{opts.app_label}_{opts.model_name}_change",
+                args=(f.pk,),
+                current_app=self.admin_site.name,
+            ),
             "image_url": f.image_file.url if f.image_file.name else "",
-        })
+        }
 
     top_fields = ["folder", "caption", "copyright"]
     advanced_fields = ["_overwrite"]
