@@ -1,8 +1,24 @@
 @import "tailwindcss";
-@plugin "daisyui";
 
 /* Scan project templates, Python and JavaScript for Tailwind class names. */
 @source "../../../**/*.{html,py,js}";
+
+/*
+ * Design tokens: the site is written with Tailwind utilities, these only name
+ * the palette so utilities like bg-primary or border-base-300 can use it.
+ * Replace the values with the brand colors of the project.
+ */
+@theme {
+  --color-primary: oklch(45% 0.24 277.023);
+  --color-primary-content: oklch(93% 0.034 272.788);
+  --color-secondary: oklch(65% 0.241 354.308);
+  --color-neutral: oklch(14% 0.005 285.823);
+  --color-neutral-content: oklch(92% 0.004 286.32);
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(98% 0 0);
+  --color-base-300: oklch(95% 0 0);
+  --color-base-content: oklch(21% 0.006 285.885);
+}
 
 /*
  * Shared typographic defaults.
@@ -13,6 +29,8 @@
  */
 @layer base {
   body {
+    background-color: var(--color-base-100);
+    color: var(--color-base-content);
     font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.65;

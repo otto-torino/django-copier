@@ -8,13 +8,13 @@
         <ul class="mt-4 flex flex-col gap-3 p-0 list-none" aria-labelledby="related-content-title">
             {% for item in results %}
                 <li class="flex flex-wrap items-baseline gap-2">
-                    <span class="badge badge-outline badge-sm">{{ item.kind_label }}</span>
-                    <a href="{{ item.url }}" class="link link-primary">{{ item.title }}</a>
+                    <span class="inline-flex items-center rounded-full border border-current px-2 text-xs">{{ item.kind_label }}</span>
+                    <a href="{{ item.url }}" class="text-primary underline">{{ item.title }}</a>
                     {% if item.date %}
                         <time class="text-sm text-base-content/60" datetime="{{ item.date|date:'Y-m-d' }}">{{ item.date|date:"SHORT_DATE_FORMAT" }}</time>
                     {% endif %}
                     {% if user.is_superuser %}
-                        <span class="badge badge-ghost badge-sm">{% trans "Shared tags" %}: {{ item.shared_tags }}</span>
+                        <span class="inline-flex items-center rounded-full bg-base-200 px-2 text-xs">{% trans "Shared tags" %}: {{ item.shared_tags }}</span>
                     {% endif %}
                 </li>
             {% endfor %}

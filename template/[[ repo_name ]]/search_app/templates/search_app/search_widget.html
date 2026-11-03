@@ -1,7 +1,7 @@
 {% load i18n %}
 
 <form method="get" action="{{ search_url }}" class="my-4">
-    <label class="input input-xl w-full">
+    <label class="flex h-14 w-full items-center gap-2 rounded-lg border border-base-content/20 bg-base-100 px-4 text-xl focus-within:outline-2 focus-within:outline-primary">
         <svg class="h-[1.2em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g
                 stroke-linejoin="round"
@@ -14,7 +14,7 @@
                 <path d="m21 21-4.3-4.3"></path>
             </g>
         </svg>
-        <input type="search" name="q" class="grow" placeholder="Search" />            
+        <input type="search" name="q" class="grow bg-transparent outline-none" placeholder="Search" />
     </label>
     <button type="submit" class="sr-only">{% trans "Submit" %}</button>
 </form>

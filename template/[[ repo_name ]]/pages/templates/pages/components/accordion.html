@@ -1,17 +1,20 @@
 {% load static components %}
 
-<div class="collapse collapse-arrow border border-base-300">
-  <input type="radio" name="{{ attributes.id }}" />
+<details class="group border border-base-300"{% if attributes.is_open %} open{% endif %}>
+  <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-4 [&::-webkit-details-marker]:hidden">
+    <span class="flex items-center gap-3">
+      {% if slots.header %}
+        {% render_slot slots.header %}
+      {% else %}
+        <h3 class="m-0 font-bold text-xl">{{ attributes.title|default:attributes.name }}</h3>
+      {% endif %}
+    </span>
+    <svg class="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6"></path>
+    </svg>
+  </summary>
 
-  <div class="collapse-title">
-    {% if slots.header %}
-      {% render_slot slots.header %}
-    {% else %}
-      <h3 class="font-bold text-xl">{{ attributes.title }}</h3>
-    {% endif %}
-  </div>
-
-  <div class="collapse-content">
+  <div class="px-4 pb-4">
     {% render_slot slots.inner_block %}
   </div>
-</div>
+</details>

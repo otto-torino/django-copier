@@ -15,8 +15,8 @@
         </div>
 
         <form method="get" action="{% url 'search_app:search' %}" class="w-full max-w-xl mx-auto">
-            <div class="join w-full">
-                <label class="input input-bordered join-item input-lg flex-grow flex items-center gap-2">
+            <div class="flex w-full">
+                <label class="flex h-12 grow items-center gap-2 rounded-l-lg border border-base-content/20 bg-base-100 px-4 text-lg focus-within:outline-2 focus-within:outline-primary">
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
                         viewBox="0 0 16 16"
@@ -25,9 +25,9 @@
                     >
                 <path fill-rule="evenodd" d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" clip-rule="evenodd" />
             </svg>
-                    <input type="search" name="q" class="grow" placeholder="{% trans 'Search for...' %}" value="{{ query|default:'' }}" />
+                    <input type="search" name="q" class="grow bg-transparent outline-none" placeholder="{% trans 'Search for...' %}" value="{{ query|default:'' }}" />
                 </label>
-                <button type="submit" class="btn btn-primary btn-lg join-item">{% trans "Search" %}</button>
+                <button type="submit" class="h-12 cursor-pointer rounded-r-lg bg-primary px-6 text-lg font-semibold text-primary-content hover:bg-primary/90">{% trans "Search" %}</button>
             </div>
         </form>
 
@@ -48,29 +48,29 @@
                                 Found {{ counter }} results for
                             {% endblocktrans %}
                         {% endif %}
-                        "<span class="badge badge-primary badge-lg align-middle">{{ query }}</span>"
+                        "<span class="inline-flex items-center rounded-full bg-primary px-3 py-0.5 align-middle text-base text-primary-content">{{ query }}</span>"
                     {% else %}
-                        {% trans "No results found for" %} "<span class="badge badge-primary badge-lg align-middle">{{ query }}</span>"
+                        {% trans "No results found for" %} "<span class="inline-flex items-center rounded-full bg-primary px-3 py-0.5 align-middle text-base text-primary-content">{{ query }}</span>"
                     {% endif %}
                 </h2>
 
                 {% if total_results_count > 0 %}
-                    <div class="join join-vertical w-full gap-2">
+                    <div class="flex w-full flex-col gap-2">
                         {% for model_name, results_list in grouped_results.items %}
                             {% accordion id=model_name is_open=True %}
                                 {% slot "header" %}
                                     <span class="text-xl font-medium">{{ model_name }}</span>
-                                    <span class="badge badge-neutral">{{ results_list|length }}</span>
+                                    <span class="inline-flex items-center rounded-full px-2.5 text-sm bg-neutral text-neutral-content">{{ results_list|length }}</span>
                                 {% endslot %}
-                                <ul class="flex flex-col gap-4 p-4 bg-base-200/20">
+                                <ul class="m-0 flex list-none flex-col gap-4 p-4 bg-base-200/20">
                                     {% for item in results_list %}
                                         <li>
-                                            <a href="{{ item.get_absolute_url }}" class="card card-compact bg-base-100 hover:bg-base-200 transition-colors duration-200 shadow-sm border border-base-300">
-                                                <div class="card-body">
+                                            <a href="{{ item.get_absolute_url }}" class="block rounded-lg bg-base-100 hover:bg-base-200 transition-colors duration-200 shadow-sm border border-base-300 no-underline">
+                                                <div class="p-4">
                                                     <div class="flex justify-between items-start flex-wrap">
-                                                        <h4 class="card-title text-primary hover:underline">{{ item }}</h4>
+                                                        <h4 class="m-0 text-lg font-semibold text-primary hover:underline">{{ item }}</h4>
                                                         {% if user.is_superuser %} 
-                                                            <div class="badge badge-outline">{% trans "Score" %}: {{ item.rank|floatformat:4 }}</div>
+                                                            <div class="inline-flex items-center rounded-full px-2.5 text-sm border border-current">{% trans "Score" %}: {{ item.rank|floatformat:4 }}</div>
                                                         {% endif %}
                                                     </div>
                                                     <p class="text-base-content/80 mt-1">{{ item.headline }}</p>
@@ -83,19 +83,19 @@
                         {% endfor %}
                     </div>
                     {% if page_obj.paginator.num_pages > 1 %}
-                        <nav class="join flex justify-center mt-8" aria-label="{% trans 'Search result pages' %}">
+                        <nav class="flex justify-center mt-8" aria-label="{% trans 'Search result pages' %}">
                             {% if page_obj.has_previous %}
-                                <a class="join-item btn" href="?q={{ query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">
+                                <a class="-ml-px border border-base-300 px-4 py-2 text-sm font-semibold first:ml-0 first:rounded-l-lg last:rounded-r-lg bg-base-200 no-underline hover:bg-base-300" href="?q={{ query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">
                                     {% trans "Previous" %}
                                 </a>
                             {% endif %}
-                            <span class="join-item btn btn-disabled" aria-current="page">
+                            <span class="-ml-px border border-base-300 px-4 py-2 text-sm font-semibold first:ml-0 first:rounded-l-lg last:rounded-r-lg bg-base-200 text-base-content/50" aria-current="page">
                                 {% blocktrans trimmed with current=page_obj.number total=page_obj.paginator.num_pages %}
                                     Page {{ current }} of {{ total }}
                                 {% endblocktrans %}
                             </span>
                             {% if page_obj.has_next %}
-                                <a class="join-item btn" href="?q={{ query|urlencode }}&amp;page={{ page_obj.next_page_number }}">
+                                <a class="-ml-px border border-base-300 px-4 py-2 text-sm font-semibold first:ml-0 first:rounded-l-lg last:rounded-r-lg bg-base-200 no-underline hover:bg-base-300" href="?q={{ query|urlencode }}&amp;page={{ page_obj.next_page_number }}">
                                     {% trans "Next" %}
                                 </a>
                             {% endif %}
