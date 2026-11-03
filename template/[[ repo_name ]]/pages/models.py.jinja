@@ -258,6 +258,11 @@ class PageContent(TimeStampedModel):
         default=False,
         help_text=_("set to true if you want the block to fill the page width"),
     )
+    divider = models.BooleanField(
+        _("divider"),
+        default=False,
+        help_text=_("show a dividing rule above this block"),
+    )
 
     objects = PageContentQuerySet.as_manager()
 
