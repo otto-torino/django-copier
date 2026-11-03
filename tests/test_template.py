@@ -640,6 +640,18 @@ class RenderingTests(unittest.TestCase):
                         "SYNC_TRANSLATION_FIELDS",
                         (destination / compose_file).read_text(),
                     )
+                if cabinet:
+                    cabinet_admin = (app / "cabinet/admin.py").read_text()
+                    self.assertEqual(
+                        "class EventFileInline(TranslationTabularInline)"
+                        in cabinet_admin,
+                        translations,
+                    )
+                    if translations:
+                        self.assertIn(
+                            '("file", "name", "description")',
+                            (app / "cabinet/translation.py").read_text(),
+                        )
                 self.assert_no_compiled_artifacts(destination)
                 self.assert_python_syntax(app)
                 self.assert_shell_scripts(destination)

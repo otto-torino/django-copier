@@ -16,7 +16,8 @@ except AlreadyRegistered:
 
 @register(AttachmentModel)
 class AttachmentModelTranslationOptions(TranslationOptions):
-    fields = ("name", "description")
+    # a different file per language, falling back to the default language one
+    fields = ("file", "name", "description")
 
 
 @register(PageContentMultiAttachment)

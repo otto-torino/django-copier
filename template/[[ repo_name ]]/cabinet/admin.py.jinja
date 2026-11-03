@@ -10,7 +10,11 @@ from django.utils.translation import gettext_lazy as _
     """sorl-thumbnail is not installed; return the original file unchanged."""
     return file[%% endif %%]
 from django.urls import reverse
-
+[%% if use_translations -%%]
+from modeltranslation.admin import TranslationTabularInline
+from modeltranslation.settings import AVAILABLE_LANGUAGES
+from modeltranslation.utils import build_localized_fieldname
+[%% endif %%]
 
 @admin.register(File)
 class FileAdmin(FileAdminBase):
@@ -98,14 +102,22 @@ try:
 
     from .models import PageContentMultiAttachment, AttachmentModel
 
-    class EventFileInline(admin.TabularInline):
+    class EventFileInline([%% if use_translations %%]TranslationTabularInline[%% else %%]admin.TabularInline[%% endif %%]):
         """
         Tabular Inline View for EventFile
         """
 
         model = AttachmentModel
         extra = 1
+[%%- if use_translations %%]
+        # the translated fields too, or they lose the help text of the file picker
+        raw_id_fields = (
+            "file",
+            *(build_localized_fieldname("file", lang) for lang in AVAILABLE_LANGUAGES),
+        )
+[%%- else %%]
         raw_id_fields = ("file",)
+[%%- endif %%]
         classes = (
             "collapse-entry",
             "expand-first",
