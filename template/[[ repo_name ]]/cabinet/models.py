@@ -143,7 +143,7 @@ try:
             ordering = ("position",)
 
         def __str__(self):
-            return str(self.file)
+            return " | ".join(str(part) for part in (self.name, self.file) if part)
 
 except ImportError:
     pass
