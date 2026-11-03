@@ -568,6 +568,8 @@ class RenderingTests(unittest.TestCase):
                 destination = self.render(*data)
                 app = destination / repo_name
                 self.assertTrue((destination / ".copier-answers.yml").is_file())
+                # runserver registers theme/static only if it exists at startup
+                self.assertTrue((app / "theme" / "static" / "css" / "dist").is_dir())
                 self.assertEqual((app / "cabinet").exists(), cabinet)
                 self.assertEqual((app / "news").exists(), news)
                 self.assertEqual((app / "events").exists(), events)
