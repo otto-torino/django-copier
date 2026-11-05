@@ -6,7 +6,14 @@ from django.contrib.sites.models import Site
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from .models import Page, PageContentText
+import tempfile
+from io import BytesIO
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from PIL import Image
+
+from .models import Page, PageContentCard, PageContentCards, PageContentText
 
 
 class SaveContentPositionTests(TestCase):
@@ -144,7 +151,7 @@ class EditContentsTests(TestCase):
             )
         )
 
-    def test_disabled_blocks_are_listed_in_red(self):
+    def test_disabled_blocks_are_listed_as_hidden(self):
         response = self.client.get(
             reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk})
         )
@@ -152,5 +159,92 @@ class EditContentsTests(TestCase):
         self.assertContains(response, "Enabled block")
         self.assertContains(response, "Disabled block")
         self.assertContains(response, "Disabled layout block")
-        self.assertContains(response, "bg-primary-subtle", count=1)
-        self.assertContains(response, "bg-danger-subtle", count=2)
+        self.assertContains(response, "content-block is-disabled", count=2)
+        self.assertContains(response, 'role="switch"', count=3)
+        # only the blocks shown on their own can be dragged
+        self.assertContains(response, "content-block-drag-handle", count=2)
+
+    def test_a_block_is_listed_with_its_icon_and_a_summary(self):
+        block = PageContentText.objects.get(name="Enabled block")
+        block.content = {"blocks": [{"type": "paragraph", "data": {"text": "La <b>prima</b> riga"}}]}
+        block.save()
+
+        response = self.client.get(
+            reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk})
+        )
+
+        self.assertContains(response, '<i class="material-symbols-outlined">notes</i>')
+        self.assertContains(response, '<span class="content-block-summary">La prima riga</span>')
+
+
+
+class BlockActionsTests(TestCase):
+    def setUp(self):
+        self.media = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        override = override_settings(MEDIA_ROOT=self.media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+        self.page = Page.objects.create(url="/page/", title="Page", status=Page.PUBLISHED)
+        self.other_page = Page.objects.create(url="/other/", title="Other", status=Page.PUBLISHED)
+        self.text = self.add(PageContentText, name="Intro", position=0)
+        self.cards = self.add(PageContentCards, name="Persone", position=1, columns=1)
+        self.last = self.add(PageContentText, name="Fine", position=2)
+        content = BytesIO()
+        Image.new("RGB", (20, 20), "red").save(content, "PNG")
+        PageContentCard.objects.create(
+            block=self.cards,
+            image=SimpleUploadedFile("foto.png", content.getvalue(), content_type="image/png"),
+            text={"blocks": [{"type": "paragraph", "data": {"text": "Alice"}}]},
+        )
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+    def add(self, model, page=None, **values):
+        block = model.objects.create(
+            page=page or self.page, content_type=ContentType.objects.get_for_model(model), **values
+        )
+        block.object_id = block.pk
+        block.save()
+        return block
+
+    def url(self, action, block, page=None):
+        return reverse(f"admin:pages_page_{action}_block", args=[(page or self.page).pk, block.pk])
+
+    def test_the_switch_hides_and_shows_a_block(self):
+        response = self.client.post(self.url("toggle", self.text))
+
+        self.assertEqual(response.json(), {"enabled": False})
+        self.text.refresh_from_db()
+        self.assertFalse(self.text.enabled)
+        self.assertEqual(self.client.post(self.url("toggle", self.text)).json(), {"enabled": True})
+
+    def test_the_actions_take_only_the_blocks_of_the_page(self):
+        other = self.add(PageContentText, page=self.other_page, name="Altrove", position=0)
+
+        for action in ("toggle", "duplicate"):
+            with self.subTest(action=action):
+                self.assertEqual(self.client.post(self.url(action, other)).status_code, 404)
+        self.assertEqual(self.client.get(self.url("toggle", self.text)).status_code, 405)
+
+    def test_a_copy_comes_right_after_the_block_with_its_items_and_files(self):
+        response = self.client.post(self.url("duplicate", self.cards))
+
+        copy = PageContentCards.objects.exclude(pk=self.cards.pk).get()
+        self.assertRedirects(
+            response,
+            reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk}) + f"#block-row-{copy.pk}",
+            fetch_redirect_response=False,
+        )
+        self.assertTrue(copy.name.startswith("Persone (") and copy.name != "Persone")
+        self.assertEqual(copy.object_id, copy.pk)
+        self.assertEqual((copy.columns, copy.page_id), (1, self.page.pk))
+        self.assertEqual(
+            list(self.page.content_blocks.order_by("position").values_list("name", flat=True)),
+            ["Intro", "Persone", copy.name, "Fine"],
+        )
+        original_card, copied_card = self.cards.cards.get(), copy.cards.get()
+        self.assertEqual(str(copied_card), "Alice")
+        self.assertNotEqual(copied_card.image.name, original_card.image.name)
+        self.assertTrue(copied_card.image.storage.exists(copied_card.image.name))

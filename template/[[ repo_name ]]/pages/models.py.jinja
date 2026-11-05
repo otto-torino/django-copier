@@ -19,7 +19,7 @@ from django.db import models
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.html import strip_tags
-from django.utils.translation import gettext as _, pgettext_lazy
+from django.utils.translation import gettext as _, ngettext, pgettext_lazy
 from django_extensions.db.models import TimeStampedModel
 from editor_js.fields import EditorJSField
 from .managers import PageContentQuerySet, PageManager
@@ -219,6 +219,20 @@ class Page(TimeStampedModel, Searchable):
         return res
 
 
+def editor_first_line(text):
+    """The first line of an Editor.js text, as plain text."""
+    for block in (text or {}).get("blocks", []):
+        data = block.get("data", {})
+        line = data.get("text") or data.get("caption") or ""
+        if not line and isinstance(data.get("items"), list) and data["items"]:
+            item = data["items"][0]
+            line = item.get("content", "") if isinstance(item, dict) else item
+        line = unescape(strip_tags(str(line))).strip()
+        if line:
+            return line
+    return ""
+
+
 class PageContent(TimeStampedModel):
     """This is a base class model which page content providers should extend"""
 
@@ -284,6 +298,14 @@ class PageContent(TimeStampedModel):
     def get_content_description(self):
         raise NotImplementedError
 
+    # the Material Symbols icon of the type, in the list of the page contents
+    content_icon = "widgets"
+
+    def get_content_summary(self):
+        """What the block holds, in one line for the list of the page contents."""
+        return ""
+
+
     def get_add_form_url(self):
         raise NotImplementedError
 
@@ -329,6 +351,11 @@ class PageContentText(PageContent, AccordionBlock):
 
     def get_content_label(self):
         return _("Text")
+
+    content_icon = "notes"
+
+    def get_content_summary(self):
+        return editor_first_line(self.content)
 
     def get_content_description(self):
         return _("Pure text content from editor")
@@ -384,6 +411,11 @@ class PageContentImage(PageContent):
 
     def get_content_label(self):
         return _("Image")
+
+    content_icon = "image"
+
+    def get_content_summary(self):
+        return self.caption or (self.image.name.rsplit("/", 1)[-1] if self.image else "")
 
     def get_content_description(self):
         return _("Full width image")
@@ -454,6 +486,11 @@ class PageContentTextImage(PageContent, AccordionBlock):
 
     def get_content_label(self):
         return _("Text and image")
+
+    content_icon = "art_track"
+
+    def get_content_summary(self):
+        return editor_first_line(self.text) or self.caption or ""
 
     def get_content_description(self):
         return _("Text and image content")
@@ -538,6 +575,13 @@ class PageContentMultiImage(PageContent):
 
     def get_content_label(self):
         return _("Multi image")
+
+    content_icon = "photo_library"
+
+    def get_content_summary(self):
+        number = self.images.count()
+        images = ngettext("%(count)d image", "%(count)d images", number) % {"count": number}
+        return f"{images} · {self.get_type_display()}"
 
     def get_content_description(self):
         return _("Multi image content (grid or carousel)")
@@ -634,6 +678,14 @@ class PageContentBoxMenu(PageContent):
 
     def get_content_label(self):
         return _("Box menu")
+
+    content_icon = "grid_view"
+
+    def get_content_summary(self):
+        names = [name for name in self.images.values_list("name", flat=True) if name]
+        number = len(names)
+        boxes = ngettext("%(count)d box", "%(count)d boxes", number) % {"count": number}
+        return f"{boxes}: {', '.join(names)}" if names else boxes
 
     def get_content_description(self):
         return _("Box menu content ")
@@ -734,6 +786,13 @@ class PageContentRssFeed(PageContent):
     def get_content_label(self):
         return _("RSS feed")
 
+    content_icon = "rss_feed"
+
+    def get_content_summary(self):
+        number = self.num_items
+        entries = ngettext("%(count)d entry", "%(count)d entries", number) % {"count": number}
+        return f"{urlsplit(self.rss_feed_url).hostname or self.rss_feed_url} · {entries}"
+
     def get_content_description(self):
         return _("RSS feed articles displayed in cards")
 
@@ -781,6 +840,12 @@ class PageContentMap(PageContent):
 
     def get_content_label(self):
         return _("Map")
+
+    content_icon = "map"
+
+    def get_content_summary(self):
+        number = self.items.count()
+        return ngettext("%(count)d item on the map", "%(count)d items on the map", number) % {"count": number}
 
     def get_content_description(self):
         return _("Open street map, with points, polylines, polygons and circles")
@@ -1086,6 +1151,11 @@ class PageContentVideo(PageContent):
     def get_content_label(self):
         return _("Video")
 
+    content_icon = "smart_display"
+
+    def get_content_summary(self):
+        return f"{self.embed['name']} · {self.video_id}"
+
     def get_content_description(self):
         return _("Video from youtube, vimeo or twitch")
 
@@ -1221,6 +1291,13 @@ class PageContentColumns(PageContent):
     def get_content_label(self):
         return _("Columns")
 
+    content_icon = "view_column"
+
+    def get_content_summary(self):
+        number = self.columns.count()
+        columns = ngettext("%(count)d column", "%(count)d columns", number) % {"count": number}
+        return f"{self.get_layout_display()} · {columns}"
+
     def get_content_description(self):
         return _("Columns side by side with text and blocks of the page, such as a map or a carousel")
 
@@ -1352,6 +1429,18 @@ class PageContentCards(PageContent):
         ),
     )
 
+    alignment = models.CharField(
+        _("vertical alignment"),
+        max_length=8,
+        choices=PageContentColumns.Alignment.choices,
+        default=PageContentColumns.Alignment.TOP,
+        help_text=_("of the image and the text, when the image is on their side"),
+    )
+    dividers = models.BooleanField(
+        _("lines between the cards"),
+        default=False,
+        help_text=_("a thin line above the cards after the first row"),
+    )
     collapsible = models.BooleanField(
         _("cards as accordions"),
         default=False,
@@ -1371,6 +1460,10 @@ class PageContentCards(PageContent):
     @property
     def image_on_the_side(self):
         return self.image_position in (self.ImagePosition.LEFT, self.ImagePosition.RIGHT)
+
+    @property
+    def centered(self):
+        return self.alignment == PageContentColumns.Alignment.CENTER
 
     @property
     def image_after_text(self):
@@ -1395,6 +1488,13 @@ class PageContentCards(PageContent):
 
     def get_content_label(self):
         return pgettext_lazy("content block", "Cards")
+
+    content_icon = "view_module"
+
+    def get_content_summary(self):
+        number = self.cards.count()
+        cards = ngettext("%(count)d card", "%(count)d cards", number) % {"count": number}
+        return f"{cards} · {_('as accordions')}" if self.collapsible else cards
 
     def get_content_description(self):
         return _("Grid of cards with an image and a text: people, offices, contacts")

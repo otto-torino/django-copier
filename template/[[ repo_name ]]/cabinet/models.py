@@ -12,7 +12,7 @@ from django.db import models
 from django.db.models import Q, signals
 from django.dispatch import receiver
 from django.urls import reverse_lazy
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, ngettext
 from tree_queries.models import TreeNode
 from pages.models import AccordionBlock
 
@@ -95,6 +95,12 @@ try:
 
         def get_content_label(self):
             return _("Attachment")
+
+        content_icon = "attach_file"
+
+        def get_content_summary(self):
+            files = self.files.count()
+            return ngettext("%(count)d attachment", "%(count)d attachments", files) % {"count": files}
 
         def get_content_description(self):
             return _("Attachment content")

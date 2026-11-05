@@ -319,6 +319,37 @@ class PageContentCardsTests(TestCase):
         self.assertEqual(geometry("4:3"), "300x225")
         self.assertIsNone(PageContentCards(aspect_ratio="original").ratio)
 
+    def test_the_image_on_the_side_and_the_text_can_be_centered(self):
+        block = self.add_cards()
+        PageContentCard.objects.create(block=block, text=self.text("Persona"), image=self.image())
+
+        response = self.client.get(self.page.get_absolute_url())
+        self.assertContains(response, "items-start")
+        self.assertNotContains(response, "[&>:last-child]:mb-0")
+
+        block.alignment = "center"
+        block.save()
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "items-center")
+        self.assertContains(response, "[&>:last-child]:mb-0")
+
+    def test_the_lines_between_the_cards_are_an_option_for_any_columns(self):
+        block = self.add_cards(columns=3)
+        for line in ("Uno", "Due", "Tre", "Quattro"):
+            PageContentCard.objects.create(block=block, text=self.text(line))
+
+        self.assertNotContains(self.client.get(self.page.get_absolute_url()), "first:border-t-0")
+
+        block.dividers = True
+        block.save()
+        response = self.client.get(self.page.get_absolute_url())
+
+        # not above the first row: one card on phones, two on tablets, three on screens
+        self.assertContains(response, "pt-8 first:border-t-0 first:pt-0", count=4)
+        self.assertContains(response, "sm:[&:nth-child(-n+2)]:border-t-0", count=4)
+        self.assertContains(response, "lg:[&:nth-child(-n+3)]:border-t-0", count=4)
+
     def test_a_card_is_named_by_the_first_line_of_its_text(self):
         card = PageContentCard(text={"blocks": [{"type": "header", "data": {"text": "Alice &amp; Bob", "level": 3}}]})
 

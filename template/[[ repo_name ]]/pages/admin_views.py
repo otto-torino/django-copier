@@ -1,16 +1,17 @@
 import json
 
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.views.generic.base import View
 
+from pages.copying import duplicate_block
 from pages.models import Page, PageContent
 
 
@@ -81,3 +82,27 @@ class SaveContentBlocksPositionView(PermissionRequiredMixin, View):
             content_block.save()
 
         return JsonResponse({"saved": True})
+
+
+class ToggleContentBlockView(PermissionRequiredMixin, View):
+    """Turns a block of the page on or off, from the list of the contents."""
+
+    permission_required = ["pages.add_page", "pages.change_page"]
+
+    def post(self, request, pk, block_pk):
+        block = get_object_or_404(PageContent, pk=block_pk, page_id=pk)
+        block.enabled = not block.enabled
+        block.save()
+        return JsonResponse({"enabled": block.enabled})
+
+
+class DuplicateContentBlockView(PermissionRequiredMixin, View):
+    """A copy of a block of the page, right after it."""
+
+    permission_required = ["pages.add_page", "pages.change_page"]
+
+    def post(self, request, pk, block_pk):
+        block = get_object_or_404(PageContent, pk=block_pk, page_id=pk)
+        copy = duplicate_block(block)
+        messages.success(request, _("The block has been copied as “%(name)s”.") % {"name": copy.name})
+        return redirect(reverse("admin:pages_page_edit_content", kwargs={"id": pk}) + f"#block-row-{copy.pk}")

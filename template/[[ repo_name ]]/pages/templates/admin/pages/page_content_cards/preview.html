@@ -3,7 +3,7 @@
     {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
     <div class="row g-3">
         {% for card in object.cards.all %}
-            <div class="col-12 col-md-{% widthratio 12 object.columns 1 %} d-flex gap-3 {% if object.image_on_the_side %}align-items-start{% else %}flex-column{% endif %}">
+            <div class="col-12 col-md-{% widthratio 12 object.columns 1 %} d-flex gap-3 {% if not object.image_on_the_side %}flex-column{% elif object.centered %}align-items-center{% else %}align-items-start{% endif %}">
                 {% if card.image %}
                     <div class="flex-shrink-0 {% if object.image_after_text %}order-last{% endif %}" style="width: min({{ object.image_size }}px, 6rem)">
                         {% if object.ratio %}

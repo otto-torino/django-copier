@@ -55,20 +55,68 @@
     return { order: order.map((id, position) => ({ id, position })) }
   }
 
-  const handleSavePosition = (payload) => {
-    // todo: reset content blocks position on failure?
-    $.ajax({
-      url: savePositionUrl,
+  // A message under the toolbar, read by the screen readers too
+  const statusLine = document.getElementById('content-blocks-status')
+  let statusTimer = null
+  const showStatus = (message, isError) => {
+    statusLine.textContent = message
+    statusLine.classList.toggle('is-error', Boolean(isError))
+    statusLine.classList.add('is-visible')
+    clearTimeout(statusTimer)
+    statusTimer = setTimeout(() => statusLine.classList.remove('is-visible'), isError ? 8000 : 2500)
+  }
+
+  const post = (url, body) =>
+    fetch(url, {
       method: 'POST',
-      data: JSON.stringify(payload),
-      contentType: 'application/json',
-      dataType: 'json',
-      headers: { 'X-CSRFToken': csrfToken },
+      credentials: 'same-origin',
+      headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : null,
+    }).then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+
+  const handleSavePosition = (payload) => {
+    post(savePositionUrl, payload)
+      .then(() => showStatus(form.dataset.savedMessage))
+      .catch(() => showStatus(form.dataset.errorMessage, true))
+  }
+
+  // Show or hide a block on the page, from its switch
+  const initToggle = () => {
+    document.querySelectorAll('[data-toggle-url]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const row = input.closest('.content-block')
+        input.disabled = true
+        post(input.dataset.toggleUrl)
+          .then(({ enabled }) => {
+            input.checked = enabled
+            row.classList.toggle('is-disabled', !enabled)
+            row.querySelector('.content-block-off').hidden = enabled
+          })
+          .catch(() => {
+            input.checked = !input.checked
+            showStatus(form.dataset.errorMessage, true)
+          })
+          .finally(() => {
+            input.disabled = false
+          })
+      })
+    })
+  }
+
+  // Copy a block: the copy comes right after it
+  const initDuplicate = () => {
+    const duplicateForm = document.getElementById('duplicate-content-block-form')
+    document.querySelectorAll('[data-toggle="duplicate-content-block"]').forEach((button) => {
+      button.addEventListener('click', () => {
+        duplicateForm.action = button.dataset.duplicateUrl
+        duplicateForm.submit()
+      })
     })
   }
 
   const initSortable = () => {
     const list = document.querySelector('#content-blocks-list')
+    if (!list) return
     const sortable = new Sortable(list, {
       handle: '.content-block-drag-handle',
       animation: 150,
@@ -89,5 +137,7 @@
   }
 
   initDelete()
+  initToggle()
+  initDuplicate()
   initSortable()
 })(Baton.jQuery)

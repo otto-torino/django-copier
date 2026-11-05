@@ -5,8 +5,8 @@ Cards in a grid that stacks on small screens, each an image and a text. The
 image is where the block says, as wide as it says: a side one on small screens
 at most 96px, so as to leave room to the text. It is cropped around its subject
 to the proportions of the block; with the original ones, as an icon, it is
-shown whole. In a single column a rule separates the cards, as the dividers
-between the blocks. As accordions the cards are one under the other, each
+shown whole. With the dividers a rule separates the rows of cards, as the
+dividers between the blocks. As accordions the cards are one under the other, each
 closed under the first line of its text.
 {% endcomment %}
 
@@ -15,7 +15,7 @@ closed under the first line of its text.
         <div style="--image: {{ obj.image_size }}px">
             {% for card in obj.cards.all %}
                 {% accordion id=card.pk name=card.accordion_title bg=obj.background_color %}
-                    <div class="flex gap-8 {% if obj.image_on_the_side %}items-start{% else %}flex-col{% endif %}">
+                    <div class="flex gap-8 {% if not obj.image_on_the_side %}flex-col{% elif obj.centered %}items-center{% else %}items-start{% endif %}">
                         {% include "pages/includes/card_body.html" with text=card.accordion_text %}
                     </div>
                 {% endaccordion %}
@@ -24,7 +24,7 @@ closed under the first line of its text.
     {% else %}
         <ul class="m-0 grid list-none gap-x-10 gap-y-8 p-0 {% if obj.columns == 2 %}md:grid-cols-2{% elif obj.columns == 3 %}sm:grid-cols-2 lg:grid-cols-3{% elif obj.columns == 4 %}sm:grid-cols-2 lg:grid-cols-4{% endif %}" style="--image: {{ obj.image_size }}px">
             {% for card in obj.cards.all %}
-                <li class="m-0! flex gap-8 {% if obj.image_on_the_side %}items-start{% else %}flex-col{% endif %}{% if obj.columns == 1 and not forloop.first %} border-t border-base-300 pt-8{% endif %}">
+                <li class="m-0! flex gap-8 {% if not obj.image_on_the_side %}flex-col{% elif obj.centered %}items-center{% else %}items-start{% endif %}{% if obj.dividers %} {% include 'pages/includes/card_divider_classes.html' %}{% endif %}">
                     {% include "pages/includes/card_body.html" with text=card.text %}
                 </li>
             {% endfor %}

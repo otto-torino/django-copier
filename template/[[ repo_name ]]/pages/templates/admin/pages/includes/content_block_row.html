@@ -1,0 +1,59 @@
+{% load i18n %}
+{% comment %}
+A block in the list of the page contents: the handle to drag it when the list
+can be sorted, the icon of its type, its name with the type and the options
+that change how it looks, a line of what it holds, the switch that shows or
+hides it, the preview and a menu to copy or delete it. A click on the name opens
+the block.
+{% endcomment %}
+{% with block=content_block.content_object %}
+<div data-id="{{ content_block.id }}" id="block-row-{{ content_block.id }}" class="content-block{% if not content_block.enabled %} is-disabled{% endif %}">
+    <div class="content-block-row">
+        {% if sortable %}
+            <span class="content-block-drag-handle" title="{% trans 'Drag to change the order' %}" aria-hidden="true"><i class="material-symbols-outlined">drag_indicator</i></span>
+        {% endif %}
+        <span class="content-block-icon" aria-hidden="true"><i class="material-symbols-outlined">{{ block.content_icon }}</i></span>
+        <a class="content-block-main" href="{{ block.get_change_form_url }}">
+            <span class="content-block-title">
+                <strong class="content-block-name">{{ content_block.name }}</strong>
+                <span class="content-block-badge content-block-type">{{ block.get_content_label }}</span>
+                <span class="content-block-badge content-block-off"{% if content_block.enabled %} hidden{% endif %}>{% trans "hidden" %}</span>
+                {% if block.use_accordion %}<span class="content-block-badge">{% trans "accordion" %}</span>{% endif %}
+                {% if block.collapsible %}<span class="content-block-badge">{% trans "accordion" %}</span>{% endif %}
+                {% if content_block.full_width %}<span class="content-block-badge">{% trans "full width" %}</span>{% endif %}
+                {% if content_block.divider %}<span class="content-block-badge">{% trans "divider" %}</span>{% endif %}
+                {% if content_block.background_color %}<span class="content-block-swatch" style="background-color: {{ content_block.background_color }}" title="{% trans 'background color' %} {{ content_block.background_color }}"></span>{% endif %}
+            </span>
+            {% with summary=block.get_content_summary %}{% if summary %}<span class="content-block-summary">{{ summary }}</span>{% endif %}{% endwith %}
+        </a>
+        <div class="form-check form-switch content-block-switch" title="{% trans 'Show or hide on the page' %}">
+            <input class="form-check-input" type="checkbox" role="switch" data-toggle-url="{% url 'admin:pages_page_toggle_block' page.id content_block.id %}"{% if content_block.enabled %} checked{% endif %} aria-label="{% blocktrans with name=content_block.name %}Show “{{ name }}” on the page{% endblocktrans %}">
+        </div>
+        <button type="button" class="btn content-block-action" data-bs-toggle="collapse" data-bs-target="#block-{{ content_block.id }}" aria-expanded="false" aria-controls="block-{{ content_block.id }}" title="{% trans 'Preview' %}">
+            <i class="material-symbols-outlined" aria-hidden="true">visibility</i><span class="visually-hidden">{% trans "Preview" %}</span>
+        </button>
+        <div class="dropdown">
+            {# no title: Baton would make it a tooltip, and Bootstrap allows one component per element #}
+            <button type="button" class="btn content-block-action" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="material-symbols-outlined" aria-hidden="true">more_vert</i><span class="visually-hidden">{% trans "Other actions" %}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <button type="button" class="dropdown-item" data-toggle="duplicate-content-block" data-duplicate-url="{% url 'admin:pages_page_duplicate_block' page.id content_block.id %}">
+                        <i class="material-symbols-outlined me-2" aria-hidden="true">content_copy</i>{% trans "Duplicate" %}
+                    </button>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a href="" class="dropdown-item text-danger" data-toggle="delete-content-block" data-delete-url="{{ block.get_delete_url }}">
+                        <i class="material-symbols-outlined me-2" aria-hidden="true">delete</i>{% trans "Delete" %}
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div id="block-{{ content_block.id }}" class="collapse content-block-preview">
+        {% include block.get_preview_template with object=block %}
+    </div>
+</div>
+{% endwith %}

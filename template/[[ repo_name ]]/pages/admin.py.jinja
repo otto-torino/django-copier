@@ -15,8 +15,10 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 [%% if use_translations %%]from modeltranslation.admin import TranslationAdmin, TranslationStackedInline[%% endif %%]
 from pages.admin_views import (
+    DuplicateContentBlockView,
     EditPageContentsView,
     SaveContentBlocksPositionView,
+    ToggleContentBlockView,
 )
 
 from .forms import ColumnsLayoutWidget, PageContentMapItemAdminForm, PageForm
@@ -155,11 +157,27 @@ class PageAdmin([%% if use_translations %%]TranslationAdmin, [%% endif %%]Archiv
                 wrap(self.save_position),
                 name="%s_%s_save_position" % info,
             ),
+            path(
+                "<int:id>/contents/<int:block_id>/toggle/",
+                wrap(self.toggle_block),
+                name="%s_%s_toggle_block" % info,
+            ),
+            path(
+                "<int:id>/contents/<int:block_id>/duplicate/",
+                wrap(self.duplicate_block),
+                name="%s_%s_duplicate_block" % info,
+            ),
         ]
         return custom_urls + urls
 
     def save_position(self, request, id):
         return SaveContentBlocksPositionView.as_view()(request, id)
+
+    def toggle_block(self, request, id, block_id):
+        return ToggleContentBlockView.as_view()(request, id, block_id)
+
+    def duplicate_block(self, request, id, block_id):
+        return DuplicateContentBlockView.as_view()(request, id, block_id)
 
     def edit_content_view(self, request, id):
         return EditPageContentsView.as_view()(request, id)
@@ -713,6 +731,8 @@ class PageContentCardsAdmin(PageContentAdmin):
                     "image_position",
                     "image_size",
                     "aspect_ratio",
+                    "alignment",
+                    "dividers",
                     "collapsible",
                 ),
                 "classes": (

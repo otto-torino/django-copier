@@ -331,9 +331,13 @@ msgstr "le immagini vengono ritagliate a queste proporzioni attorno al soggetto;
 msgid "cards as accordions"
 msgstr "schede come accordion"
 
-#: models.py
-msgid "each card is closed under the first line of its text and opens to show the image and the rest; the columns do not count"
-msgstr "ogni scheda è chiusa sotto la prima riga del suo testo e si apre per mostrare l'immagine e il resto; le colonne non contano"
+#: models.py:1431
+msgid ""
+"each card is closed under the first line of its text and opens to show the "
+"image and the rest; the columns do not count"
+msgstr ""
+"ogni scheda è chiusa sotto la prima riga del suo testo e si apre per "
+"mostrare l'immagine e il resto; le colonne non contano"
 
 #: models.py
 msgid "cards block"
@@ -380,6 +384,114 @@ msgstr "Nessun blocco solo dentro le colonne"
 #: models.py
 msgid "Loading…"
 msgstr "Caricamento…"
+
+#: admin_views.py:107
+#, python-format
+msgid "The block has been copied as “%(name)s”."
+msgstr "Il blocco è stato copiato come «%(name)s»."
+
+#: copying.py:65
+#, python-format
+msgid "%(name)s (copy)"
+msgstr "%(name)s (copia)"
+
+#: models.py:577
+#, python-format
+msgid "%(count)d image"
+msgid_plural "%(count)d images"
+msgstr[0] "%(count)d immagine"
+msgstr[1] "%(count)d immagini"
+
+#: models.py:681
+#, python-format
+msgid "%(count)d box"
+msgid_plural "%(count)d boxes"
+msgstr[0] "%(count)d box"
+msgstr[1] "%(count)d box"
+
+#: models.py:787
+#, python-format
+msgid "%(count)d entry"
+msgid_plural "%(count)d entries"
+msgstr[0] "%(count)d notizia"
+msgstr[1] "%(count)d notizie"
+
+#: models.py:842
+#, python-format
+msgid "%(count)d item on the map"
+msgid_plural "%(count)d items on the map"
+msgstr[0] "%(count)d elemento sulla mappa"
+msgstr[1] "%(count)d elementi sulla mappa"
+
+#: models.py:1293
+#, python-format
+msgid "%(count)d column"
+msgid_plural "%(count)d columns"
+msgstr[0] "%(count)d colonna"
+msgstr[1] "%(count)d colonne"
+
+#: models.py:1475
+#, python-format
+msgid "%(count)d card"
+msgid_plural "%(count)d cards"
+msgstr[0] "%(count)d scheda"
+msgstr[1] "%(count)d schede"
+
+#: templates/admin/pages/change_content.html:81
+msgid "Order saved"
+msgstr "Ordine salvato"
+
+#: templates/admin/pages/change_content.html:82
+msgid "The change has not been saved: reload the page and try again."
+msgstr "La modifica non è stata salvata: ricarica la pagina e riprova."
+
+#: templates/admin/pages/includes/content_block_row.html:13
+msgid "Drag to change the order"
+msgstr "Trascina per cambiare l'ordine"
+
+#: templates/admin/pages/includes/content_block_row.html:20
+msgid "hidden"
+msgstr "nascosto"
+
+#: templates/admin/pages/includes/content_block_row.html:29
+msgid "Show or hide on the page"
+msgstr "Mostra o nascondi nella pagina"
+
+#: templates/admin/pages/includes/content_block_row.html:30
+#, python-format
+msgid "Show “%(name)s” on the page"
+msgstr "Mostra «%(name)s» nella pagina"
+
+#: templates/admin/pages/includes/content_block_row.html:32
+#: templates/admin/pages/includes/content_block_row.html:33
+msgid "Preview"
+msgstr "Anteprima"
+
+#: templates/admin/pages/includes/content_block_row.html:38
+#
+msgid "Other actions"
+msgstr "Altre azioni"
+
+#: templates/admin/pages/includes/content_block_row.html:43
+msgid "Duplicate"
+msgstr "Duplica"
+
+#: templates/admin/pages/includes/content_block_row.html:49
+msgid "Delete"
+msgstr "Elimina"
+
+#: models.py
+msgid "lines between the cards"
+msgstr "linee tra le schede"
+
+#: models.py
+msgid "a thin line above the cards after the first row"
+msgstr "una linea sottile sopra le schede dopo la prima riga"
+
+#: models.py
+msgid "of the image and the text, when the image is on their side"
+msgstr "dell'immagine e del testo, quando l'immagine sta a fianco del testo"
+
 #~ msgid "draft"
 #~ msgstr "bozza"
 

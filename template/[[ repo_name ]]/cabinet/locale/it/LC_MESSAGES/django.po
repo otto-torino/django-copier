@@ -265,19 +265,31 @@ msgstr "Carica file trascinandoli nella lista qui sopra."
 msgid "Save"
 msgstr "Salva"
 
+#: fields.py:82
 msgid ""
 "Search an existing file with the magnifying glass, or upload a new one on "
 "the right after choosing the folder to save it in."
 msgstr ""
-"Cerca un file già caricato con la lente, oppure caricane uno nuovo a "
-"destra scegliendo prima la cartella in cui salvarlo."
+"Cerca un file già caricato con la lente, oppure caricane uno nuovo a destra "
+"scegliendo prima la cartella in cui salvarlo."
 
 msgid "No file selected"
 msgstr "Nessun file selezionato"
 
+#: templates/admin/cabinet/cabinet_file_raw_id_widget.html:9
 msgid "Remove"
 msgstr "Rimuovi"
 
+#: models.py:103
+#, python-format
+msgid "%(count)d attachment"
+msgid_plural "%(count)d attachments"
+msgstr[0] "%(count)d allegato"
+msgstr[1] "%(count)d allegati"
+
+#: views.py:47
+msgid "Invalid image file."
+msgstr "File immagine non valido."
 #~ msgid "image"
 #~ msgstr "immagine"
 

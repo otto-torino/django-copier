@@ -11,4 +11,5 @@
         {% endif %}
     </div>
 {% endif %}
-<div class="min-w-0 flex-1 break-words">{{ text|render_editor_js }}</div>
+{# centered, the text ends with its last line: the margin under it would raise it #}
+<div class="min-w-0 flex-1 break-words{% if obj.centered %} [&>:last-child]:mb-0{% endif %}">{{ text|render_editor_js }}</div>
