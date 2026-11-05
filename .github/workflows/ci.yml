@@ -53,16 +53,6 @@ jobs:
             cabinet: false
             news: false
             events: false
-            sorl: true
-            translations: false
-            languages: "[it,en]"
-          - name: minimal
-            project_name: Minimal Project
-            repo_name: minimal-project
-            cabinet: false
-            news: false
-            events: false
-            sorl: false
             translations: false
             languages: "[it,en]"
           - name: cabinet
@@ -71,7 +61,6 @@ jobs:
             cabinet: true
             news: false
             events: false
-            sorl: true
             translations: false
             languages: "[it,en]"
           - name: multilingual
@@ -80,7 +69,6 @@ jobs:
             cabinet: false
             news: false
             events: false
-            sorl: true
             translations: true
             languages: "[it,en]"
           - name: full
@@ -89,7 +77,6 @@ jobs:
             cabinet: true
             news: true
             events: true
-            sorl: true
             translations: true
             languages: "[it,en,fr]"
     permissions:
@@ -109,7 +96,6 @@ jobs:
             --data use_cabinet="${{ matrix.cabinet }}" \
             --data use_news="${{ matrix.news }}" \
             --data use_events="${{ matrix.events }}" \
-            --data use_sorl_thumbnail="${{ matrix.sorl }}" \
             --data use_translations="${{ matrix.translations }}" \
             --data languages='${{ matrix.languages }}' \
             --data default_language=it \

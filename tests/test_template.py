@@ -452,22 +452,7 @@ class RenderingTests(unittest.TestCase):
 
     def test_rendering_matrix(self) -> None:
         cases = (
-            ("default", (), "my-new-project", False, False, False, True, False, ()),
-            (
-                "minimal",
-                (
-                    "project_name=Minimal Project",
-                    "repo_name=minimal-project",
-                    "use_sorl_thumbnail=false",
-                ),
-                "minimal-project",
-                False,
-                False,
-                False,
-                False,
-                False,
-                (),
-            ),
+            ("default", (), "my-new-project", False, False, False, False, ()),
             (
                 "cabinet",
                 (
@@ -479,7 +464,6 @@ class RenderingTests(unittest.TestCase):
                 True,
                 False,
                 False,
-                True,
                 False,
                 (),
             ),
@@ -497,7 +481,6 @@ class RenderingTests(unittest.TestCase):
                 False,
                 False,
                 True,
-                True,
                 ("it", "en"),
             ),
             (
@@ -511,7 +494,6 @@ class RenderingTests(unittest.TestCase):
                 False,
                 True,
                 False,
-                True,
                 False,
                 (),
             ),
@@ -526,7 +508,6 @@ class RenderingTests(unittest.TestCase):
                 False,
                 False,
                 True,
-                True,
                 False,
                 (),
             ),
@@ -538,13 +519,11 @@ class RenderingTests(unittest.TestCase):
                     "use_cabinet=true",
                     "use_news=true",
                     "use_events=true",
-                    "use_sorl_thumbnail=true",
                     "use_translations=true",
                     "languages=[it,en,fr]",
                     "default_language=it",
                 ),
                 "full-project",
-                True,
                 True,
                 True,
                 True,
@@ -560,7 +539,6 @@ class RenderingTests(unittest.TestCase):
             cabinet,
             news,
             events,
-            sorl,
             translations,
             languages,
         ) in cases:
@@ -587,13 +565,13 @@ class RenderingTests(unittest.TestCase):
                         (app / module / "translation.py").exists(),
                         enabled and translations,
                     )
-                thumbnail_library = "sorl_thumbnail" if sorl else "sorl_fallback"
                 self.assertIn(
-                    "{% load " + thumbnail_library + " %}",
+                    "{% load sorl_thumbnail %}",
                     (app / "pages/templates/pages/grid/grid_item.html").read_text(),
                 )
+                self.assertFalse((app / "pages/templatetags/sorl_fallback.py").exists())
                 requirements = (app / "requirements/common.txt").read_text()
-                self.assertEqual("sorl-thumbnail==" in requirements, sorl)
+                self.assertIn("sorl-thumbnail==", requirements)
                 settings = (app / "core/settings/common.py").read_text()
                 self.assertTrue((app / "search_app/related.py").is_file())
                 self.assertIn("RELATED_CONTENT_RESULTS = ", settings)
@@ -768,7 +746,6 @@ class RenderingTests(unittest.TestCase):
                 "use_cabinet=false",
                 "use_news=false",
                 "use_events=false",
-                "use_sorl_thumbnail=true",
                 "use_translations=false",
             )
             self.initialize_project_repository(destination)
@@ -785,7 +762,6 @@ class RenderingTests(unittest.TestCase):
                 "use_cabinet=true",
                 "use_news=true",
                 "use_events=true",
-                "use_sorl_thumbnail=false",
                 "use_translations=true",
                 "languages=[it,en]",
                 "default_language=it",
@@ -795,7 +771,6 @@ class RenderingTests(unittest.TestCase):
                 cabinet=True,
                 news=True,
                 events=True,
-                sorl=False,
                 translations=True,
             )
             self.assert_env_unchanged(env_path, original_env)
@@ -808,7 +783,6 @@ class RenderingTests(unittest.TestCase):
                 "use_cabinet=false",
                 "use_news=false",
                 "use_events=false",
-                "use_sorl_thumbnail=true",
                 "use_translations=false",
             )
             self.assert_optional_features(
@@ -816,7 +790,6 @@ class RenderingTests(unittest.TestCase):
                 cabinet=False,
                 news=False,
                 events=False,
-                sorl=True,
                 translations=False,
             )
             self.assert_env_unchanged(env_path, original_env)
@@ -1010,7 +983,6 @@ class RenderingTests(unittest.TestCase):
         cabinet: bool,
         news: bool,
         events: bool,
-        sorl: bool,
         translations: bool,
     ) -> None:
         self.assertEqual((app / "cabinet").exists(), cabinet)
@@ -1031,10 +1003,9 @@ class RenderingTests(unittest.TestCase):
                 enabled and translations,
             )
         grid_item = (app / "pages/templates/pages/grid/grid_item.html").read_text()
-        thumbnail_library = "sorl_thumbnail" if sorl else "sorl_fallback"
-        self.assertIn("{% load " + thumbnail_library + " %}", grid_item)
+        self.assertIn("{% load sorl_thumbnail %}", grid_item)
         requirements = (app / "requirements/common.txt").read_text()
-        self.assertEqual("sorl-thumbnail==" in requirements, sorl)
+        self.assertIn("sorl-thumbnail==", requirements)
 
     def assert_env_unchanged(self, env_path: Path, original: bytes) -> None:
         self.assertEqual(env_path.read_bytes(), original)
@@ -1107,7 +1078,7 @@ class RenderingTests(unittest.TestCase):
                 re.search(
                     r"\[\[[ \t]*(?:"
                     r"_copier|project_name|project_description|repo_name|"
-                    r"use_cabinet|use_news|use_events|use_sorl_thumbnail|"
+                    r"use_cabinet|use_news|use_events|"
                     r"use_translations|languages|"
                     r"default_language|timezone|author|email|db_user"
                     r")\b",

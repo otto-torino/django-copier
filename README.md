@@ -44,8 +44,9 @@ build images, access application services or start containers. Run
 `make bootstrap` inside the generated project when ready.
 
 The questionnaire controls the project name and description, repository slug,
-PostgreSQL user, timezone, author, email, the optional cabinet, news, events
-and sorl-thumbnail integrations, and multilingual support.
+PostgreSQL user, timezone, author, email, the optional cabinet, news and
+events applications, and multilingual support. sorl-thumbnail is always
+installed.
 
 ## Update a generated project
 
@@ -69,9 +70,9 @@ more specific `[%% ... %%]` for control blocks so Django's `{% ... %}` and
 
 Codecov reports coverage for the executable template tasks under `tasks/`.
 Mypy checks `tasks/` and the test harness under `tests/`; generation tests also
-verify the five supported configurations: default, minimal, cabinet,
-multilingual and full (including news and events). For every configuration, CI validates the rendered
-Python sources and Docker Compose configuration, runs `make bootstrap`, and
+verify the four supported configurations: default, cabinet, multilingual and
+full (including news and events). For every configuration, CI validates the
+rendered Python sources and Docker Compose configuration, runs `make bootstrap`, and
 executes the generated Django test suite against an isolated PostgreSQL
 service.
 

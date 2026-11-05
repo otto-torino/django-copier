@@ -102,11 +102,6 @@ use_events:
   default: false
   help: Include the events application
 
-use_sorl_thumbnail:
-  type: bool
-  default: true
-  help: Use sorl-thumbnail instead of the local fallback
-
 use_translations:
   type: bool
   default: false
