@@ -54,12 +54,35 @@ class MapContentTests(TestCase):
             with self.subTest(shape=shape):
                 self.map_item(shape=shape, coordinates=coordinates).full_clean()
 
+    def test_shapes_accept_the_points_exported_by_the_drawer(self):
+        valid_coordinates = {
+            PageContentMapItem.Shape.POINT: {"lat": 45.0, "lng": 7.0},
+            PageContentMapItem.Shape.POLYLINE: [
+                {"lat": 45.0, "lng": 7.0},
+                {"lat": 46.0, "lng": 8.0},
+            ],
+            PageContentMapItem.Shape.POLYGON: [
+                {"lat": 45.0, "lng": 7.0},
+                {"lat": 46.0, "lng": 8.0},
+                {"lat": 44.0, "lng": 8.0},
+            ],
+        }
+
+        for shape, coordinates in valid_coordinates.items():
+            with self.subTest(shape=shape):
+                item = self.map_item(shape=shape, coordinates=coordinates)
+                item.full_clean()
+                self.assertEqual(item.as_map_data()["coordinates"], coordinates)
+
     def test_coordinates_reject_code_and_invalid_geography(self):
         invalid_coordinates = (
             "[45, 7]; alert('xss')",
             [91, 7],
             [45, 181],
             [45],
+            {"lat": 45.0},
+            {"lat": 91, "lng": 7},
+            {"lat": 45.0, "lng": 7.0, "html": "<script>"},
         )
 
         for coordinates in invalid_coordinates:
@@ -101,6 +124,27 @@ class MapContentTests(TestCase):
         self.assertIsNone(payload["coordinates"])
         self.assertEqual(payload["link"], "")
         self.assertEqual(payload["color"], "#000000")
+
+    def test_page_shows_the_map_block(self):
+        # as the admin does, to render the block from the list of the page
+        self.block.object_id = self.block.pk
+        self.block.save()
+        PageContentMapItem.objects.create(
+            block=self.block,
+            shape=PageContentMapItem.Shape.POLYGON,
+            coordinates=[
+                {"lat": 45.0, "lng": 7.0},
+                {"lat": 46.0, "lng": 8.0},
+                {"lat": 44.0, "lng": 8.0},
+            ],
+            name="Area",
+        )
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, f'id="Map{self.block.pk}"')
+        self.assertContains(response, f'id="map{self.block.pk}"')
+        self.assertContains(response, '"lat": 46.0')
 
     def test_template_serializes_untrusted_text_without_executing_it(self):
         attack = "</script><script>alert('xss')</script>"

@@ -784,6 +784,10 @@ class PageContentMap(PageContent):
         return "pages/page_content_map.html"
 
     @property
+    def get_unique_id(self):
+        return "Map" + str(self.pk)
+
+    @property
     def map_data_id(self):
         return f"page-map-data-{self.pk}"
 
@@ -884,16 +888,22 @@ def _validate_map_number(value, *, minimum, maximum, label):
 
 
 def _validate_map_point(value):
-    if not isinstance(value, list) or len(value) != 2:
+    # [lat, lng] or {"lat": ..., "lng": ...}, the one the drawer of the admin exports:
+    # Leaflet reads both.
+    if isinstance(value, dict) and set(value) == {"lat", "lng"}:
+        lat, lng = value["lat"], value["lng"]
+    elif isinstance(value, list) and len(value) == 2:
+        lat, lng = value
+    else:
         raise ValidationError(_("A point must contain latitude and longitude."))
     _validate_map_number(
-        value[0],
+        lat,
         minimum=-90,
         maximum=90,
         label=_("Latitude"),
     )
     _validate_map_number(
-        value[1],
+        lng,
         minimum=-180,
         maximum=180,
         label=_("Longitude"),
