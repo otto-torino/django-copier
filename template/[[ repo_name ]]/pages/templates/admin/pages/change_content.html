@@ -23,6 +23,16 @@
     <!-- Leaflet -->
     <link rel="stylesheet" href="{% static 'core/src/vendor/leaflet/leaflet.css' %}" />
     <script src="{% static 'core/src/vendor/leaflet/leaflet.js' %}"></script>
+
+    {# The previews play the embeds of the editor at once: the admin has no Cookie Rulez to wait for, see includes/consent_note.html #}
+    <style>[data-player-consent] { display: none; }</style>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll("iframe[data-cookierulez][data-src]").forEach((iframe) => {
+                iframe.src = iframe.dataset.src;
+            });
+        });
+    </script>
 {% endblock %}
 
 {% if not is_popup %}

@@ -10,6 +10,10 @@ MEDIA_ROOT = BASE_DIR / "media-test"
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
+# Tests never load the Cookie Rulez banner of the local environment: the tests
+# of the consent turn it on explicitly.
+COOKIERULEZ_WIDGET_CODE = ""
+
 # Tests must not depend on the local log directory or send error emails.
 LOGGING = {
     "version": 1,

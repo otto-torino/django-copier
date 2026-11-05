@@ -3,13 +3,11 @@
 
 {% block inner_block %}
     {{ obj.description|render_editor_js }}
-    <div class="flex justify-center mt-4">
-        {% if obj.platform == 1 %}
-            <iframe data-src="https://www.youtube.com/embed/{{ obj.video_id }}?si=dgIQWWWBNsOjoeNJ" data-cookierulez="marketing" class="aspect-[16/9]" style="width: {{ obj.width_percent }}%"  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-        {% elif obj.platform == 2 %}
-            <iframe data-src="https://player.vimeo.com/video/{{ obj.video_id }}?h=5a5572cc05" data-cookierulez="marketing" class="aspect-[16/9]" style="width: {{ obj.width_percent }}%" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-        {% elif obj.platform == 3 %}
-            <iframe data-src="https://clips.twitch.tv/embed?{{ obj.video_id }}&parent={{ request.get_host|replace:":8000|" }}" data-cookierulez="marketing" class="aspect-[16/9]" style="width: {{ obj.width_percent }}%" frameborder="0" allowfullscreen="true" scrolling="no"></iframe>
-        {% endif %}
-    </div>
+    {% comment %}YouTube, Vimeo and Twitch set their own cookies: with Cookie Rulez the player waits for the consent, see includes/consent_note.html.{% endcomment %}
+    {% with embed=obj.embed %}
+        <div class="mt-4 flex flex-col items-center">
+            <iframe class="aspect-video border-0 [&:not([src^=http])]:hidden" style="width: {{ obj.width_percent }}%" {% if COOKIERULEZ_WIDGET_CODE %}data-src{% else %}src{% endif %}="{{ embed.url }}{% if obj.platform == 3 %}&parent={{ request.get_host|replace:":8000|" }}{% endif %}"{% if COOKIERULEZ_WIDGET_CODE %} data-cookierulez="marketing"{% endif %} title="{{ obj.name|default:embed.name }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen loading="lazy"></iframe>
+            {% if COOKIERULEZ_WIDGET_CODE %}{% include "includes/consent_note.html" with platform=embed.name link=embed.link class="w-full" %}{% endif %}
+        </div>
+    {% endwith %}
 {% endblock inner_block %}

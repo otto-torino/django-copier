@@ -1,0 +1,46 @@
+# core translations
+msgid ""
+msgstr ""
+"Project-Id-Version: 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-05 15:00+0100\n"
+"PO-Revision-Date: 2026-11-05 15:00+0100\n"
+"Last-Translator: otto <logs@otto.srl>\n"
+"Language-Team: it <LL@li.org>\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/includes/consent_note.html:16
+#, python-format
+msgid ""
+"The %(platform)s content is not displayed because it uses third-party "
+"cookies: it is loaded once they are accepted in the cookie settings."
+msgstr ""
+"Il contenuto di %(platform)s non è visibile perché utilizza cookie di terze "
+"parti: viene caricato dopo il consenso nelle impostazioni dei cookie."
+
+#: templates/includes/consent_note.html:16
+#, python-format
+msgid ""
+"The %(platform)s player is not displayed because it uses third-party "
+"cookies: it is loaded once they are accepted in the cookie settings."
+msgstr ""
+"Il player di %(platform)s non è visibile perché utilizza cookie di terze "
+"parti: viene caricato dopo il consenso nelle impostazioni dei cookie."
+
+#: templates/includes/consent_note.html:18
+msgid "Cookie settings"
+msgstr "Impostazioni cookie"
+
+#: templates/includes/consent_note.html:19
+#, python-format
+msgid "Open on %(platform)s"
+msgstr "Apri su %(platform)s"
+
+#: templates/includes/consent_note.html:19
+#, python-format
+msgid "Watch on %(platform)s"
+msgstr "Guarda su %(platform)s"

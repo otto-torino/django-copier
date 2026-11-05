@@ -61,7 +61,7 @@
                     </div>
                 {% endif %}
                 {% with template=content_block.content_object.get_render_template %}
-                    {% include template with obj=content_block.content_object request=request only %}
+                    {% include template with obj=content_block.content_object request=request COOKIERULEZ_WIDGET_CODE=COOKIERULEZ_WIDGET_CODE only %}
                 {% endwith %}
             {% endfor %}
         </div>

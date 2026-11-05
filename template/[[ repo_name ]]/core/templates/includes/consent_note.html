@@ -1,0 +1,21 @@
+{% load i18n %}
+{% comment %}
+The note in place of a player Cookie Rulez keeps blocked: the platforms set their
+own cookies, so the iframe gets its src only once the marketing cookies are
+accepted, and an empty src until then. Placed right after the iframe, as its
+sibling, the note shows while the src of the iframe is not an address; the
+iframe hides itself with ``[&:not([src^=http])]:hidden``.
+
+- platform: the name of the platform, as "YouTube"
+- link: the address of the content on the platform, optional
+- link_label: the text of the link, "Watch on <platform>" by default
+- kind: "player" (the default) for audio and video, "content" for the others
+- class: extra classes of the note
+{% endcomment %}
+<div class="rounded-xl border border-base-300 bg-base-200 p-5 [iframe[src^=http]~&]:hidden{% if class %} {{ class }}{% endif %}" data-player-consent>
+    <p class="m-0 mb-3.5 leading-[1.45]">{% if kind == "content" %}{% blocktrans %}The {{ platform }} content is not displayed because it uses third-party cookies: it is loaded once they are accepted in the cookie settings.{% endblocktrans %}{% else %}{% blocktrans %}The {{ platform }} player is not displayed because it uses third-party cookies: it is loaded once they are accepted in the cookie settings.{% endblocktrans %}{% endif %}</p>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2.5">
+        <button class="cursor-pointer border-0 bg-primary px-4 py-2 font-bold text-primary-content hover:opacity-90" type="button" data-cookie-settings>{% trans "Cookie settings" %}</button>
+        {% if link %}<a class="font-bold text-primary" href="{{ link }}" target="_blank" rel="noopener">{% if link_label %}{{ link_label }}{% elif kind == "content" %}{% blocktrans %}Open on {{ platform }}{% endblocktrans %}{% else %}{% blocktrans %}Watch on {{ platform }}{% endblocktrans %}{% endif %}</a>{% endif %}
+    </div>
+</div>

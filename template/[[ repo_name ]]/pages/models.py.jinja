@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import logging
 import math
 import re
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from colorfield.fields import ColorField
 from baton.fields import BatonAiImageField
@@ -1019,6 +1019,34 @@ class PageContentVideo(PageContent):
 
     def get_content_description(self):
         return _("Video from youtube, vimeo or twitch")
+
+    @property
+    def embed(self):
+        """The name of the platform, the URL of its player and the link of the video there.
+
+        YouTube plays from the domain without cookies until the video starts.
+        The Twitch player wants the host of the page as ``parent``: the
+        template adds it. Its video id is the query of the player, as
+        ``clip=<slug>``; without a clip there is no link to give.
+        """
+        if self.platform == self.YOUTUBE:
+            return {
+                "name": "YouTube",
+                "url": f"https://www.youtube-nocookie.com/embed/{self.video_id}",
+                "link": f"https://www.youtube.com/watch?v={self.video_id}",
+            }
+        if self.platform == self.VIMEO:
+            return {
+                "name": "Vimeo",
+                "url": f"https://player.vimeo.com/video/{self.video_id}?h=5a5572cc05",
+                "link": f"https://vimeo.com/{self.video_id}",
+            }
+        clip = parse_qs(self.video_id).get("clip", [""])[0]
+        return {
+            "name": "Twitch",
+            "url": f"https://clips.twitch.tv/embed?{self.video_id}",
+            "link": f"https://clips.twitch.tv/{clip}" if clip else "",
+        }
 
     def get_add_form_url(self):
         return reverse_lazy("admin:pages_pagecontentvideo_add")
