@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
@@ -248,3 +249,77 @@ class BlockActionsTests(TestCase):
         self.assertEqual(str(copied_card), "Alice")
         self.assertNotEqual(copied_card.image.name, original_card.image.name)
         self.assertTrue(copied_card.image.storage.exists(copied_card.image.name))
+
+
+class AddBlockTests(TestCase):
+    def setUp(self):
+        self.page = Page.objects.create(url="/page/", title="Page", status=Page.PUBLISHED)
+        self.first = self.add("Primo", 0)
+        self.second = self.add("Secondo", 1)
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+    def add(self, name, position, **values):
+        block = PageContentText.objects.create(
+            page=self.page,
+            content_type=ContentType.objects.get_for_model(PageContentText),
+            name=name,
+            position=position,
+            **values,
+        )
+        block.object_id = block.pk
+        block.save()
+        return block
+
+    def post_text(self, name, after=None):
+        url = f"{reverse('admin:pages_pagecontenttext_add')}?page={self.page.pk}"
+        if after is not None:
+            url += f"&after={after}"
+        # the name of the default language with modeltranslation
+        field = "name"
+        if "modeltranslation" in settings.INSTALLED_APPS:
+            field = f"name_{getattr(settings, 'MODELTRANSLATION_DEFAULT_LANGUAGE', settings.LANGUAGE_CODE)}"
+        return self.client.post(url, {field: name, "enabled": "on"})
+
+    def names(self):
+        return list(self.page.content_blocks.order_by("position").values_list("name", flat=True))
+
+    def test_a_new_block_goes_at_the_end_on_its_row(self):
+        response = self.post_text("Nuovo")
+
+        new = PageContentText.objects.get(name="Nuovo")
+        self.assertRedirects(
+            response,
+            reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk}) + f"#block-row-{new.pk}",
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(self.names(), ["Primo", "Secondo", "Nuovo"])
+
+    def test_a_new_block_goes_after_the_chosen_one_or_at_the_beginning(self):
+        self.post_text("Dopo il primo", after=self.first.pk)
+        self.post_text("In cima", after="start")
+
+        self.assertEqual(self.names(), ["In cima", "Primo", "Dopo il primo", "Secondo"])
+
+    def test_the_end_is_after_the_last_position_not_the_number_of_blocks(self):
+        # a block deleted between the others leaves a gap: the count would give a duplicate
+        self.second.position = 5
+        self.second.save()
+
+        self.post_text("Nuovo")
+
+        self.assertEqual(PageContentText.objects.get(name="Nuovo").position, 6)
+
+    def test_the_blocks_for_the_columns_are_listed_only_when_there_are_some(self):
+        url = reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk})
+
+        self.assertNotContains(self.client.get(url), 'id="layout-blocks-list"')
+
+        self.add("Per le colonne", 2, layout_content=True)
+        response = self.client.get(url)
+
+        self.assertContains(response, 'id="layout-blocks-list"')
+        self.assertContains(response, "content-block-badge content-block-off")
+        self.assertContains(response, reverse("admin:pages_page_change", args=[self.page.pk]))
+        self.assertContains(response, f'href="{self.page.get_absolute_url()}"')

@@ -305,6 +305,10 @@ class PageContent(TimeStampedModel):
         """What the block holds, in one line for the list of the page contents."""
         return ""
 
+    def used_in_columns(self):
+        """The names of the columns blocks that show this block."""
+        return sorted({column.block.name for column in self.columns_using.select_related("block")})
+
 
     def get_add_form_url(self):
         raise NotImplementedError

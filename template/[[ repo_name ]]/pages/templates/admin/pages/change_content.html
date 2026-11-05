@@ -52,27 +52,48 @@
 {% block content %}
     <div id="content-main">
         <div class="module" id="changelist">
-            <div id="toolbar">
-                <div class="d-flex justify-content-end gap-2 align-items-center">
-                    <div id="content_type_description" class="pe-2"></div>
-                    <select class="form-select w-auto" name="content_module" id="id_content_module">
-                        <option data-description="" value="">{% trans "Content type" %}</option>
-                        {% for name, model in page_admin.content_models.items %}
-                        <option
-                            data-url="{{ model.get_add_form_url }}"
-                            data-description="{{ model.get_content_description | escapejs }}"
-                            value="{{ model.class_name }}"
-                        >{{ model.get_content_label }}</option>
-                        {% endfor %}
-                    </select>
-                    <button class="btn btn-secondary" id="add-content-block" data-alert-message="{% trans "Please select a content type" %}">
-                        {% trans "Add content block" %}
-                    </button>
-                    <button class="btn btn-secondary mx-4" onclick="window.location.href=`{% url 'admin:pages_page_change' page.id %}`">
-                        {% trans "Main" %}
+            <div id="toolbar" class="content-blocks-toolbar">
+                <nav class="nav nav-tabs content-blocks-tabs" aria-label="{% trans 'Page' %}">
+                    <a class="nav-link" href="{% url 'admin:pages_page_change' page.id %}">{% trans "Page data" %}</a>
+                    <a class="nav-link active" aria-current="page" href="">{% trans "Contents" %}</a>
+                </nav>
+                <div class="content-blocks-toolbar-actions">
+                    <a class="btn btn-outline-secondary" href="{{ page.get_absolute_url }}" target="_blank" rel="noopener">
+                        <i class="material-symbols-outlined me-1" aria-hidden="true">open_in_new</i>{% trans "View on site" %}
+                    </a>
+                    <button type="button" class="btn btn-primary" data-add-block>
+                        <i class="material-symbols-outlined me-1" aria-hidden="true">add</i>{% trans "Add block" %}
                     </button>
                 </div>
             </div>
+            {% comment %}
+            The types of block, to choose the one to add. The links carry the page
+            and, from a "+" of the list, the block after which the new one goes.
+            {% endcomment %}
+            <dialog id="add-block-dialog" class="content-blocks-dialog" aria-labelledby="add-block-title"
+                    data-after-message="{% trans 'The new block will go after “%(name)s”.' %}"
+                    data-start-message="{% trans 'The new block will go at the beginning of the page.' %}">
+                <div class="content-blocks-dialog-header">
+                    <h2 id="add-block-title">{% trans "Add a block" %}</h2>
+                    <button type="button" class="btn content-block-action" data-close-dialog>
+                        <i class="material-symbols-outlined" aria-hidden="true">close</i><span class="visually-hidden">{% trans "Close" %}</span>
+                    </button>
+                </div>
+                <p class="content-blocks-dialog-note" data-insert-note hidden></p>
+                <ul class="content-types">
+                    {% for name, model in page_admin.content_models.items %}
+                        <li>
+                            <a class="content-type" href="{{ model.get_add_form_url }}?page={{ page.id }}" data-add-url="{{ model.get_add_form_url }}?page={{ page.id }}">
+                                <span class="content-block-icon" aria-hidden="true"><i class="material-symbols-outlined">{{ model.content_icon }}</i></span>
+                                <span class="content-type-text">
+                                    <strong>{{ model.get_content_label }}</strong>
+                                    <span>{{ model.get_content_description }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </dialog>
             <form
                 action="" id="changelist-form" data-page-id="{{ page.id }}"
                 data-save-position-url="{% url 'admin:pages_page_save_position' page.id %}"
@@ -91,16 +112,14 @@
                 <div class="alert alert-info mb-0">{% trans "No content blocks" %}</div>
             {% endif %}
 
-            <hr style="margin: 40px 0 30px" />
-            <p class="mb-4">{% trans "Blocks only inside columns: they are not shown on their own, place them in a column of a columns block." %}</p>
-            {% if page.content_blocks.for_layout.count %}
+            {% if page.content_blocks.for_layout.exists %}
+                <h2 class="content-blocks-heading">{% trans "Blocks only inside columns" %}</h2>
+                <p class="content-blocks-help">{% trans "They are not shown on their own: each one is in a column of a columns block." %}</p>
                 <div id="layout-blocks-list" class="content-blocks-list">
                     {% for content_block in page.content_blocks.for_layout %}
                         {% include "admin/pages/includes/content_block_row.html" %}
                     {% endfor %}
                 </div>
-            {% else %}
-                <div class="alert alert-info mb-0">{% trans "No blocks only inside columns" %}</div>
             {% endif %}
             </form>
             <form method="POST" class="d-none" id="duplicate-content-block-form">

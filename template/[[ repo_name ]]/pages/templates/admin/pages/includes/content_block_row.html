@@ -1,7 +1,8 @@
 {% load i18n %}
 {% comment %}
-A block in the list of the page contents: the handle to drag it when the list
-can be sorted, the icon of its type, its name with the type and the options
+A block in the list of the page contents: the handle to drag it and the "+"
+to add a block next to it when the list can be sorted, else the columns that
+show it, the icon of its type, its name with the type and the options
 that change how it looks, a line of what it holds, the switch that shows or
 hides it, the preview and a menu to copy or delete it. A click on the name opens
 the block.
@@ -22,6 +23,11 @@ the block.
                 {% if block.collapsible %}<span class="content-block-badge">{% trans "accordion" %}</span>{% endif %}
                 {% if content_block.full_width %}<span class="content-block-badge">{% trans "full width" %}</span>{% endif %}
                 {% if content_block.divider %}<span class="content-block-badge">{% trans "divider" %}</span>{% endif %}
+                {% if not sortable %}
+                    {% with used=content_block.used_in_columns %}
+                        {% if used %}<span class="content-block-badge">{% blocktrans with names=used|join:", " %}in {{ names }}{% endblocktrans %}</span>{% else %}<span class="content-block-badge content-block-off">{% trans "in no column" %}</span>{% endif %}
+                    {% endwith %}
+                {% endif %}
                 {% if content_block.background_color %}<span class="content-block-swatch" style="background-color: {{ content_block.background_color }}" title="{% trans 'background color' %} {{ content_block.background_color }}"></span>{% endif %}
             </span>
             {% with summary=block.get_content_summary %}{% if summary %}<span class="content-block-summary">{{ summary }}</span>{% endif %}{% endwith %}
@@ -52,6 +58,17 @@ the block.
             </ul>
         </div>
     </div>
+    {% if sortable %}
+        {# a new block right here: before the first one, and after each #}
+        {% if forloop.first %}
+            <button type="button" class="content-block-insert is-before" data-add-block data-after="start" title="{% trans 'Add a block here' %}">
+                <i class="material-symbols-outlined" aria-hidden="true">add</i><span class="visually-hidden">{% trans "Add a block at the beginning" %}</span>
+            </button>
+        {% endif %}
+        <button type="button" class="content-block-insert" data-add-block data-after="{{ content_block.id }}" data-after-name="{{ content_block.name }}" title="{% trans 'Add a block here' %}">
+            <i class="material-symbols-outlined" aria-hidden="true">add</i><span class="visually-hidden">{% blocktrans with name=content_block.name %}Add a block after “{{ name }}”{% endblocktrans %}</span>
+        </button>
+    {% endif %}
     <div id="block-{{ content_block.id }}" class="collapse content-block-preview">
         {% include block.get_preview_template with object=block %}
     </div>

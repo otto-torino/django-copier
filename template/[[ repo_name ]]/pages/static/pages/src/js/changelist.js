@@ -1,26 +1,35 @@
 ;(function ($) {
   const form = document.getElementById('changelist-form')
-  const pageId = form.dataset.pageId
   const savePositionUrl = form.dataset.savePositionUrl
   const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value
 
-  // Handle the content type change
-  $('#id_content_module').change(function () {
-    let description = $(this).find('option:selected').data('description')
-    $('#content_type_description').html(description)
-  })
-
-  // Handle the content block add
-  $('#add-content-block').click(function () {
-    const alertMessage = $(this).data('alert-message')
-    let contentModule = $('#id_content_module').val()
-    if (!contentModule) {
-      alert(alertMessage)
-      return
+  // Add a block: the dialog of the types, from the toolbar at the end of the
+  // page, from a "+" of the list right there
+  const initAdd = () => {
+    const dialog = document.getElementById('add-block-dialog')
+    const note = dialog.querySelector('[data-insert-note]')
+    const open = (button) => {
+      const after = button.dataset.after || ''
+      dialog.querySelectorAll('[data-add-url]').forEach((link) => {
+        link.href = link.dataset.addUrl + (after ? '&after=' + encodeURIComponent(after) : '')
+      })
+      if (after === 'start') {
+        note.textContent = dialog.dataset.startMessage
+      } else if (after) {
+        note.textContent = dialog.dataset.afterMessage.replace('%(name)s', button.dataset.afterName)
+      }
+      note.hidden = !after
+      dialog.showModal()
     }
-    let url = $('#id_content_module').find('option:selected').data('url')
-    window.location.assign(url + '?page=' + pageId)
-  })
+    document.querySelectorAll('[data-add-block]').forEach((button) => {
+      button.addEventListener('click', () => open(button))
+    })
+    dialog.querySelector('[data-close-dialog]').addEventListener('click', () => dialog.close())
+    // a click on the backdrop closes it, as Escape does
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close()
+    })
+  }
 
   // Handle the content block delete
   const initDelete = () => {
@@ -131,11 +140,15 @@
           const order = sortable.toArray()
           const payload = buildPayload(order)
           handleSavePosition(payload)
+          // the "+" before the first block stays on the first block
+          const before = list.querySelector('.content-block-insert.is-before')
+          if (before) list.firstElementChild.appendChild(before)
         },
       },
     })
   }
 
+  initAdd()
   initDelete()
   initToggle()
   initDuplicate()

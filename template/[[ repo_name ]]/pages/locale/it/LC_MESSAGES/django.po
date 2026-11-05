@@ -492,6 +492,116 @@ msgstr "una linea sottile sopra le schede dopo la prima riga"
 msgid "of the image and the text, when the image is on their side"
 msgstr "dell'immagine e del testo, quando l'immagine sta a fianco del testo"
 
+
+#: templates/admin/pages/change_content.html:58
+#
+msgid "Page"
+msgstr "Pagina"
+
+#: templates/admin/pages/change_content.html:59
+msgid "Page data"
+msgstr "Dati della pagina"
+
+#: templates/admin/pages/change_content.html:64
+msgid "View on site"
+msgstr "Vedi sul sito"
+
+#: templates/admin/pages/change_content.html:67
+#
+msgid "Add block"
+msgstr "Aggiungi blocco"
+
+#: templates/admin/pages/change_content.html:77
+#, python-format
+msgid "The new block will go after “%%(name)s”."
+msgstr "Il nuovo blocco andrà dopo «%%(name)s»."
+
+#: templates/admin/pages/change_content.html:78
+#
+msgid "The new block will go at the beginning of the page."
+msgstr "Il nuovo blocco andrà all'inizio della pagina."
+
+#: templates/admin/pages/change_content.html:80
+#
+msgid "Add a block"
+msgstr "Aggiungi un blocco"
+
+#: templates/admin/pages/change_content.html:82
+msgid "Close"
+msgstr "Chiudi"
+
+#: templates/admin/pages/change_content.html:119
+#
+msgid "Blocks only inside columns"
+msgstr "Blocchi solo dentro le colonne"
+
+#: templates/admin/pages/change_content.html:120
+#
+msgid ""
+"They are not shown on their own: each one is in a column of a columns block."
+msgstr "Non vengono mostrati da soli: ognuno sta in una colonna di un blocco colonne."
+
+#: templates/admin/pages/includes/content_block_row.html:28
+#, python-format
+msgid "in %(names)s"
+msgstr "in %(names)s"
+
+#: templates/admin/pages/includes/content_block_row.html:28
+#
+msgid "in no column"
+msgstr "in nessuna colonna"
+
+#: templates/admin/pages/includes/content_block_row.html:64
+#: templates/admin/pages/includes/content_block_row.html:68
+#
+msgid "Add a block here"
+msgstr "Aggiungi un blocco qui"
+
+#: templates/admin/pages/includes/content_block_row.html:65
+msgid "Add a block at the beginning"
+msgstr "Aggiungi un blocco all'inizio"
+
+#: templates/admin/pages/includes/content_block_row.html:69
+#, python-format
+msgid "Add a block after “%(name)s”"
+msgstr "Aggiungi un blocco dopo «%(name)s»"
+
+#: templates/admin/pages/change_content.html
+msgid "Are you sure you want to delete this content block?"
+msgstr "Vuoi davvero eliminare questo blocco di contenuto?"
+
+#: templates/admin/pages/change_content.html
+msgid "Contents"
+msgstr "Contenuti"
+
+#: templates/admin/pages/change_content.html
+msgid "Delete content block"
+msgstr "Elimina blocco"
+
+#: templates/admin/pages/change_content.html
+msgid "No content blocks"
+msgstr "Nessun blocco di contenuto"
+
+#: templates/admin/pages/change_content.html
+msgid "Yes, I'm sure"
+msgstr "Sì, elimina"
+
+#: templates/admin/pages/change_content.html
+msgid "accordion"
+msgstr "accordion"
+
+#: templates/admin/pages/change_content.html
+msgid "background color"
+msgstr "colore di sfondo"
+
+#: templates/admin/pages/change_content.html
+msgid "divider"
+msgstr "barra divisoria"
+
+#: templates/admin/pages/change_content.html
+msgid "full width"
+msgstr "tutta larghezza"
+
 #~ msgid "draft"
 #~ msgstr "bozza"
 

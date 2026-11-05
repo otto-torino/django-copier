@@ -9,6 +9,7 @@ from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import F, Max
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import path, reverse
 from django.utils.safestring import mark_safe
@@ -233,15 +234,35 @@ class PageContentAdmin([%% if use_translations %%]TranslationAdmin[%% else %%]ad
         )
         return super().render_change_form(request, context, add, change, form_url, obj)
 
+    @staticmethod
+    def new_position(page, after):
+        """Where a new block goes: at the end, or after the block of the list
+        of the contents the editor chose, "start" for before the first one.
+        The block after which is given rather than a position, which a drag
+        in the list would have changed meanwhile."""
+        blocks = page.content_blocks.all()
+        if after == "start":
+            first = blocks.for_content().order_by("position").first()
+            return first.position if first else 0, True
+        reference = blocks.filter(pk=after).first() if str(after).isdigit() else None
+        if reference:
+            return reference.position + 1, True
+        last = blocks.aggregate(last=Max("position"))["last"]
+        return (last + 1 if last is not None else 0), False
+
     def save_model(self, request, obj, form, change):
+        insert = False
         if not change:
             page_id = request.GET.get("page")
             page = get_object_or_404(Page, id=page_id)
             content_type = ContentType.objects.get_for_model(self.model)
             obj.page = page
             obj.content_type = content_type
-            obj.position = page.content_blocks.for_content().count()  # pyright: ignore
+            obj.position, insert = self.new_position(page, request.GET.get("after"))
         with transaction.atomic():  # TODO manage error
+            if insert:
+                # the blocks from there on make room for the new one
+                obj.page.content_blocks.filter(position__gte=obj.position).update(position=F("position") + 1)
             super().save_model(request, obj, form, change)
             # we need to store the id inside the PageContent object_id field to be able to
             # retrieve specific class from the base class
@@ -251,9 +272,10 @@ class PageContentAdmin([%% if use_translations %%]TranslationAdmin[%% else %%]ad
 
     def response_post_save_add(self, request, obj: PageContent):
         """
-        If adding  a block, redirect to the content editing page
+        If adding  a block, redirect to the content editing page, on its row
         """
-        return redirect("admin:pages_page_edit_content", id=obj.page_id)  # pyright: ignore
+        url = reverse("admin:pages_page_edit_content", kwargs={"id": obj.page_id})  # pyright: ignore
+        return redirect(f"{url}#block-row-{obj.pk}")
 
     def response_post_save_change(self, request, obj: PageContent):
         """
