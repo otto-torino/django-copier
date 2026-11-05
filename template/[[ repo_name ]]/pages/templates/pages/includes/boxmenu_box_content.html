@@ -1,0 +1,4 @@
+<span class="flex flex-row items-center md:w-full md:flex-col md:gap-5">
+    {% if box.icon %}<img class="h-32 shrink-0{% if obj.shadow and box.file %} drop-shadow-[0_0_5px_rgba(0,0,0,0.5)]{% endif %}" src="{{ box.icon.url }}" alt="" />{% endif %}
+    <span class="ms-6 font-condensed text-3xl font-bold md:ms-0 md:mb-4 md:text-center md:text-xl" style="color: {{ box.text_color }};{% if obj.shadow and box.file %} text-shadow: rgba(0,0,0,0.5) 0 0 5px;{% endif %}">{{ box.name }}</span>
+</span>

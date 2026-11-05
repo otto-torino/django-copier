@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import logging
 import math
 import re
+from html import unescape
 from urllib.parse import parse_qs, urlsplit
 
 from colorfield.fields import ColorField
@@ -17,7 +18,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.translation import gettext as _
+from django.utils.html import strip_tags
+from django.utils.translation import gettext as _, pgettext_lazy
 from django_extensions.db.models import TimeStampedModel
 from editor_js.fields import EditorJSField
 from .managers import PageContentQuerySet, PageManager
@@ -165,7 +167,8 @@ class Page(TimeStampedModel, Searchable):
         'content_blocks__pagecontentmap__items__caption',
         'content_blocks__pagecontentvideo__description',
         'content_blocks__pagecontentvideo__credits',
-        'content_blocks__pagecontentlayout__layout_items__text',
+        'content_blocks__pagecontentcolumns__columns__text',
+        'content_blocks__pagecontentcards__cards__text',
     ]
 
     objects: PageManager = PageManager()  # pyright: ignore
@@ -195,10 +198,10 @@ class Page(TimeStampedModel, Searchable):
         )
 
     def has_map_content(self):
-        for c in self.content_blocks.filter(enabled=True, layout_content=False):  # pyright: ignore
-            if c.content_type.model == "pagecontentmap":
-                return True
-        return False
+        """Whether a block needs Leaflet, also inside columns."""
+        return self.content_blocks.filter(  # pyright: ignore
+            enabled=True, content_type__model="pagecontentmap"
+        ).exists()
 
     @property
     def breadcrumbs(self):
@@ -227,9 +230,9 @@ class PageContent(TimeStampedModel):
     ]
 
     layout_content = models.BooleanField(
-        _("layout content"),
+        _("only inside columns"),
         default=False,
-        help_text=_("if true this content can only be used inside a layout block, in that case probably you also want it to have full width"),
+        help_text=_("the block is not shown on its own: place it in a column of a columns block"),
     )
     name = models.CharField(_("name"), max_length=200)
     show_name = models.BooleanField(_("show name"), default=False)
@@ -471,6 +474,21 @@ class PageContentTextImage(PageContent, AccordionBlock):
         return "pages/page_content_textimage.html"
 
     @property
+    def is_side_image(self):
+        return self.image_position in ("left", "right")
+
+    @property
+    def is_narrow_image(self):
+        """A side image in a column up to a quarter wide: on small screens it
+        stays next to the text, which would otherwise follow a large photo
+        or a stretched icon."""
+        if not self.is_side_image:
+            return False
+        left = self.left_column_width or 50
+        image_column = left if self.image_position == "left" else 100 - left
+        return image_column <= 25
+
+    @property
     def get_unique_id(self):
         return "TextImage" + str(self.pk)
 
@@ -507,7 +525,6 @@ class PageContentMultiImage(PageContent):
         default="600x500",
         help_text=_("size should be wxh"),
     )
-    image_list = models.JSONField(verbose_name=_("image list"), blank=True, null=True)
 
     def __str__(self):
         return f"{self.page.title}/{_('multi image content')}"
@@ -838,7 +855,7 @@ class PageContentMapItem(models.Model):
             raise ValidationError({"coordinates": exc.messages}) from exc
         if self.link:
             try:
-                _validate_map_link(self.link)
+                _validate_link(self.link)
             except ValidationError as exc:
                 raise ValidationError({"link": exc.messages}) from exc
 
@@ -850,7 +867,7 @@ class PageContentMapItem(models.Model):
             coordinates = None
 
         try:
-            _validate_map_link(self.link)
+            _validate_link(self.link)
             link = self.link or ""
         except ValidationError:
             link = ""
@@ -961,17 +978,17 @@ def _validate_map_coordinates(shape, coordinates):
     raise ValidationError(_("Unknown map shape."))
 
 
-def _validate_map_link(link):
+def _validate_link(link):
     if not link:
         return
     if any(ord(character) < 32 for character in link):
-        raise ValidationError(_("The map link contains invalid characters."))
+        raise ValidationError(_("The link contains invalid characters."))
     if link.startswith("/") and not link.startswith("//"):
         return
     try:
         parsed = urlsplit(link)
     except ValueError as exc:
-        raise ValidationError(_("Enter a valid map link.")) from exc
+        raise ValidationError(_("Enter a valid link.")) from exc
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.hostname
@@ -979,8 +996,51 @@ def _validate_map_link(link):
         or parsed.password
     ):
         raise ValidationError(
-            _("Map links must be relative URLs or use HTTP or HTTPS.")
+            _("Links must be relative URLs or use HTTP or HTTPS.")
         )
+
+
+def parse_video_link(link):
+    """The platform and the id of the video a link points to, or None.
+
+    The id is the one PageContentVideo.embed expects: the code for YouTube, the
+    number for Vimeo with "?h=<hash>" for an unlisted video, "clip=<slug>" for
+    a Twitch clip.
+    """
+    try:
+        parsed = urlsplit(link)
+    except ValueError:
+        return None
+    host = (parsed.hostname or "").removeprefix("www.").removeprefix("m.")
+    parts = [part for part in parsed.path.split("/") if part]
+    query = parse_qs(parsed.query)
+
+    if host in ("youtube.com", "youtube-nocookie.com", "music.youtube.com"):
+        if parts[:1] == ["watch"] and query.get("v"):
+            return PageContentVideo.YOUTUBE, query["v"][0]
+        if len(parts) >= 2 and parts[0] in ("embed", "shorts", "live", "v"):
+            return PageContentVideo.YOUTUBE, parts[1]
+    if host == "youtu.be" and parts:
+        return PageContentVideo.YOUTUBE, parts[0]
+
+    if host in ("vimeo.com", "player.vimeo.com"):
+        numbers = [index for index, part in enumerate(parts) if part.isdigit()]
+        if numbers:
+            index = numbers[-1]
+            privacy_hash = query.get("h", [""])[0]
+            # vimeo.com/<id>/<hash>, the link of an unlisted video
+            if not privacy_hash and index + 1 < len(parts) and host == "vimeo.com":
+                privacy_hash = parts[index + 1]
+            video = parts[index]
+            return PageContentVideo.VIMEO, f"{video}?h={privacy_hash}" if privacy_hash else video
+
+    if host == "clips.twitch.tv" and parts and parts[0] != "embed":
+        return PageContentVideo.TWITCH, f"clip={parts[0]}"
+    if host == "clips.twitch.tv" and query.get("clip"):
+        return PageContentVideo.TWITCH, f"clip={query['clip'][0]}"
+    if host == "twitch.tv" and len(parts) >= 3 and parts[1] == "clip":
+        return PageContentVideo.TWITCH, f"clip={parts[2]}"
+    return None
 
 
 class PageContentVideo(PageContent):
@@ -999,7 +1059,16 @@ class PageContentVideo(PageContent):
     platform = models.IntegerField(
         _("platform"), choices=PLATFORM_CHOICES, default=YOUTUBE
     )
-    video_id = models.CharField(_("video id"), max_length=255)
+    video_id = models.CharField(
+        _("video link or id"),
+        max_length=255,
+        help_text=_(
+            "Paste the link of the video: the platform is recognised by itself. "
+            "Or write its id: for YouTube the code after v=, for Vimeo the number, "
+            "followed by ?h= and its code for an unlisted video, for Twitch clip= "
+            "and the name of the clip."
+        ),
+    )
     width_percent = models.IntegerField(
         _("width percent"), default=100, validators=[MaxValueValidator(100)]
     )
@@ -1036,10 +1105,17 @@ class PageContentVideo(PageContent):
                 "link": f"https://www.youtube.com/watch?v={self.video_id}",
             }
         if self.platform == self.VIMEO:
+            # an unlisted video comes with its hash, as "<id>?h=<hash>" or as
+            # "<id>/<hash>", the way its link has it
+            video, separator, privacy_hash = self.video_id.partition("?h=")
+            if not separator:
+                video, _, privacy_hash = self.video_id.partition("/")
             return {
                 "name": "Vimeo",
-                "url": f"https://player.vimeo.com/video/{self.video_id}?h=5a5572cc05",
-                "link": f"https://vimeo.com/{self.video_id}",
+                "url": f"https://player.vimeo.com/video/{video}"
+                + (f"?h={privacy_hash}" if privacy_hash else ""),
+                "link": f"https://vimeo.com/{video}"
+                + (f"/{privacy_hash}" if privacy_hash else ""),
             }
         clip = parse_qs(self.video_id).get("clip", [""])[0]
         return {
@@ -1047,6 +1123,16 @@ class PageContentVideo(PageContent):
             "url": f"https://clips.twitch.tv/embed?{self.video_id}",
             "link": f"https://clips.twitch.tv/{clip}" if clip else "",
         }
+
+    def clean(self):
+        super().clean()
+        if urlsplit(self.video_id.strip()).scheme in ("http", "https"):
+            parsed = parse_video_link(self.video_id.strip())
+            if parsed is None:
+                raise ValidationError(
+                    {"video_id": _("This is not a link to a YouTube, Vimeo or Twitch video.")}
+                )
+            self.platform, self.video_id = parsed
 
     def get_add_form_url(self):
         return reverse_lazy("admin:pages_pagecontentvideo_add")
@@ -1068,108 +1154,322 @@ class PageContentVideo(PageContent):
         return "Video" + str(self.pk)
 
 
-# .grid-wrapper {
-#     display: grid;
-#     gap: 10px;
-#     grid-template-columns: 150px 100px 150px 100px ;
-#     grid-template-rows: repeat(3,minmax(100px,auto));
-#   }
-#
-#   .grid-item-1 { // id1
-#     grid-column: 1 / 3;
-#   }
-#
-#   .grid-item-2 { // id2
-#     grid-column: 4 ;
-#   }
-#
-#   .grid-item-3 { // id3
-#     grid-column: 1;
-#     grid-row: 2 / 4;
-#   }
-#   ...
-#
-class PageContentLayout(PageContent):
-    wrapper_css = models.TextField(
-        _("grid css"),
-        help_text="The grid wrapper should have a .grid-wrapper class, every grid item should have a .grid-item class",
+class PageContentColumns(PageContent):
+    """Columns side by side, each with a text and a block of the page.
+
+    The blocks placed in a column are marked "only inside columns": they are
+    not shown on their own. On small screens the columns stack in their order.
+    """
+
+    class Layout(models.TextChoices):
+        HALVES = "1-1", _("Two equal columns")
+        THIRDS = "1-1-1", _("Three equal columns")
+        QUARTERS = "1-1-1-1", _("Four equal columns")
+        THIRD_TWO_THIRDS = "1-2", _("One third and two thirds")
+        TWO_THIRDS_THIRD = "2-1", _("Two thirds and one third")
+        QUARTER_THREE_QUARTERS = "1-3", _("One quarter and three quarters")
+        THREE_QUARTERS_QUARTER = "3-1", _("Three quarters and one quarter")
+
+    class Alignment(models.TextChoices):
+        TOP = "top", _("Top")
+        CENTER = "center", _("Center")
+
+    # the classes of the grid on large screens, below it is a single column
+    GRID_CLASSES = {
+        Layout.HALVES: "md:grid-cols-2",
+        Layout.THIRDS: "md:grid-cols-3",
+        Layout.QUARTERS: "sm:grid-cols-2 lg:grid-cols-4",
+        Layout.THIRD_TWO_THIRDS: "md:grid-cols-[1fr_2fr]",
+        Layout.TWO_THIRDS_THIRD: "md:grid-cols-[2fr_1fr]",
+        Layout.QUARTER_THREE_QUARTERS: "md:grid-cols-[1fr_3fr]",
+        Layout.THREE_QUARTERS_QUARTER: "md:grid-cols-[3fr_1fr]",
+    }
+
+    layout = models.CharField(
+        _("layout"),
+        max_length=8,
+        choices=Layout.choices,
+        default=Layout.HALVES,
+        help_text=_("more columns than the layout has go to a new row"),
+    )
+    alignment = models.CharField(
+        _("vertical alignment"),
+        max_length=8,
+        choices=Alignment.choices,
+        default=Alignment.TOP,
     )
 
     def __str__(self):
-        return f"{self.page.title}/{_('Layout')}"
-
-    def render_wrapper_css(self):
-        return self.wrapper_css.replace("grid-wrapper", "grid-wrapper-" + str(self.pk))
+        return f"{self.page.title}/{_('Columns')}"
 
     class Meta:  # pyright: ignore
-        verbose_name = _("Layout block")
-        verbose_name_plural = _("Layout blocks")
+        verbose_name = _("columns block")
+        verbose_name_plural = _("columns blocks")
+
+    @property
+    def grid_class(self):
+        return self.GRID_CLASSES.get(self.layout, "")
+
+    @property
+    def widths(self):
+        """The relative widths of the columns, for the drawing in the admin."""
+        return [int(width) for width in self.layout.split("-")]
 
     def class_name(self):
         return self.__class__.__name__
 
     def get_content_label(self):
-        return _("Layout")
+        return _("Columns")
 
     def get_content_description(self):
-        return _("Layout with grid")
+        return _("Columns side by side with text and blocks of the page, such as a map or a carousel")
 
     def get_add_form_url(self):
-        return reverse_lazy("admin:pages_pagecontentlayout_add")
+        return reverse_lazy("admin:pages_pagecontentcolumns_add")
 
     def get_change_form_url(self):
-        return reverse_lazy("admin:pages_pagecontentlayout_change", args=[self.pk])
+        return reverse_lazy("admin:pages_pagecontentcolumns_change", args=[self.pk])
 
     def get_delete_url(self):
-        return reverse_lazy("admin:pages_pagecontentlayout_delete", args=[self.pk])
+        return reverse_lazy("admin:pages_pagecontentcolumns_delete", args=[self.pk])
 
     def get_preview_template(self):
-        return "admin/pages/page_content_layout/preview.html"
+        return "admin/pages/page_content_columns/preview.html"
 
     def get_render_template(self):
-        return "pages/page_content_layout.html"
+        return "pages/page_content_columns.html"
 
     @property
     def get_unique_id(self):
-        return "Layout" + str(self.pk)
+        return "Columns" + str(self.pk)
 
 
-class PageContentLayoutItem(models.Model):
-    TOP = 1
-    BOTTOM = 2
+class PageContentColumn(models.Model):
+    class TextPosition(models.TextChoices):
+        ABOVE = "above", _("Above the block")
+        BELOW = "below", _("Below the block")
 
-    POSITION_CHOICES = (
-        (TOP, _("Top")),
-        (BOTTOM, _("Bottom")),
+    block = models.ForeignKey(
+        PageContentColumns, on_delete=models.CASCADE, related_name="columns"
     )
-    layout = models.ForeignKey(
-        PageContentLayout, on_delete=models.CASCADE, related_name="layout_items"
-    )
-    css = models.TextField(
-        verbose_name=_("css"),
-        help_text=_(
-            "Write the css class of the grid item, it must be .grid-item, i.e. .grid-item { grid-column: 1 / 3; }"
-        ),
-    )
+    text = EditorJSField(verbose_name=_("text"), blank=True, null=True)
     content = models.ForeignKey(
         PageContent,
-        on_delete=models.CASCADE,
-        related_name="layout_contents",
+        verbose_name=_("block"),
+        on_delete=models.SET_NULL,
+        related_name="columns_using",
         blank=True,
         null=True,
         limit_choices_to={"layout_content": True},
+        help_text=_(
+            "a block of this page marked as \"only inside columns\", "
+            "such as a map or a carousel"
+        ),
     )
-    text = EditorJSField(verbose_name=_("text"), blank=True, null=True)
-    text_position = models.PositiveSmallIntegerField(
-        _("tex position"), choices=POSITION_CHOICES, default=TOP
+    text_position = models.CharField(
+        _("text position"),
+        max_length=8,
+        choices=TextPosition.choices,
+        default=TextPosition.ABOVE,
     )
+    position = models.IntegerField(_("order"), default=0)
 
     class Meta:  # pyright: ignore
-        verbose_name = _("Layout block item")
-        verbose_name_plural = _("Layout block items")
-        ordering = [
-            "id",
-        ]
+        verbose_name = _("column")
+        verbose_name_plural = _("columns")
+        ordering = ("position", "id")
 
-    def render_item_css(self):
-        return self.css.replace("grid-item", "grid-item-" + str(self.pk))
+    def __str__(self):
+        return "%s %s" % (_("Column"), self.position)
+
+    def clean(self):
+        super().clean()
+        if self.content is None:
+            return
+        # a columns block in a column could contain itself
+        if self.content.content_type.model == "pagecontentcolumns":
+            raise ValidationError(
+                {"content": _("A columns block cannot be placed in a column.")}
+            )
+        if self.block_id and self.content.page_id != self.block.page_id:
+            raise ValidationError(
+                {"content": _("The block must belong to the same page.")}
+            )
+
+
+class PageContentCards(PageContent):
+    """A grid of cards, each an image and a text: people, offices, contacts.
+
+    The image has the same place and size in all the cards of the block.
+    """
+
+    class ImagePosition(models.TextChoices):
+        LEFT = "left", _("Left")
+        RIGHT = "right", _("Right")
+        TOP = "top", _("Top")
+        BOTTOM = "bottom", _("Bottom")
+
+    class AspectRatio(models.TextChoices):
+        ORIGINAL = "original", _("Original")
+        SQUARE = "1:1", "1:1"
+        FOUR_THREE = "4:3", "4:3"
+        THREE_TWO = "3:2", "3:2"
+        SIXTEEN_NINE = "16:9", "16:9"
+
+    COLUMN_CHOICES = [(n, str(n)) for n in range(1, 5)]
+    # the side images on small screens, next to a text that needs the room
+    SMALL_SCREEN_SIDE_IMAGE_SIZE = 96
+
+    columns = models.PositiveSmallIntegerField(
+        _("columns"),
+        choices=COLUMN_CHOICES,
+        default=2,
+        help_text=_("maximum number of cards per row, on small screens they stack"),
+    )
+    image_position = models.CharField(
+        _("image position"),
+        max_length=8,
+        choices=ImagePosition.choices,
+        default=ImagePosition.LEFT,
+        help_text=_("where the image is, compared to the text"),
+    )
+    image_size = models.PositiveSmallIntegerField(
+        _("image width (px)"),
+        default=150,
+        validators=[MinValueValidator(16), MaxValueValidator(1000)],
+        help_text=_(
+            "on small screens an image on the side of the text is at most 96px wide"
+        ),
+    )
+    aspect_ratio = models.CharField(
+        _("proportions"),
+        max_length=8,
+        choices=AspectRatio.choices,
+        default=AspectRatio.SQUARE,
+        help_text=_(
+            "the images are cropped to these proportions around their subject; "
+            "original shows them whole, as icons"
+        ),
+    )
+
+    collapsible = models.BooleanField(
+        _("cards as accordions"),
+        default=False,
+        help_text=_(
+            "each card is closed under the first line of its text and opens to "
+            "show the image and the rest; the columns do not count"
+        ),
+    )
+
+    def __str__(self):
+        return f"{self.page.title}/{pgettext_lazy('content block', 'Cards')}"
+
+    class Meta:  # pyright: ignore
+        verbose_name = _("cards block")
+        verbose_name_plural = _("cards blocks")
+
+    @property
+    def image_on_the_side(self):
+        return self.image_position in (self.ImagePosition.LEFT, self.ImagePosition.RIGHT)
+
+    @property
+    def image_after_text(self):
+        return self.image_position in (self.ImagePosition.RIGHT, self.ImagePosition.BOTTOM)
+
+    @property
+    def ratio(self):
+        """Width and height of the proportions, None for the original ones."""
+        if self.aspect_ratio == self.AspectRatio.ORIGINAL:
+            return None
+        width, height = self.aspect_ratio.split(":")
+        return int(width), int(height)
+
+    @property
+    def thumbnail_geometry(self):
+        """The crop at twice the width, for the screens with dense pixels."""
+        width, height = self.ratio or (1, 1)
+        return f"{self.image_size * 2}x{round(self.image_size * 2 * height / width)}"
+
+    def class_name(self):
+        return self.__class__.__name__
+
+    def get_content_label(self):
+        return pgettext_lazy("content block", "Cards")
+
+    def get_content_description(self):
+        return _("Grid of cards with an image and a text: people, offices, contacts")
+
+    def get_add_form_url(self):
+        return reverse_lazy("admin:pages_pagecontentcards_add")
+
+    def get_change_form_url(self):
+        return reverse_lazy("admin:pages_pagecontentcards_change", args=[self.pk])
+
+    def get_delete_url(self):
+        return reverse_lazy("admin:pages_pagecontentcards_delete", args=[self.pk])
+
+    def get_preview_template(self):
+        return "admin/pages/page_content_cards/preview.html"
+
+    def get_render_template(self):
+        return "pages/page_content_cards.html"
+
+    @property
+    def get_unique_id(self):
+        return "Cards" + str(self.pk)
+
+
+class PageContentCard(models.Model):
+    block = models.ForeignKey(
+        PageContentCards, on_delete=models.CASCADE, related_name="cards"
+    )
+    image = BatonAiImageField(
+        verbose_name=_("image"),
+        upload_to="pages/cards/",
+        subject_location_field="subject_location",
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        blank=True,
+        null=True,
+    )
+    alt_text = models.CharField(
+        _("alt text"),
+        max_length=255,
+        blank=True,
+        help_text=_("Leave it empty when the text already says what the image shows."),
+    )
+    subject_location = models.CharField(
+        _("subject coordinates"), max_length=7, default="50,50"
+    )
+    text = EditorJSField(verbose_name=_("text"), blank=True, null=True)
+    position = models.IntegerField(_("order"), default=0)
+
+    class Meta:  # pyright: ignore
+        verbose_name = _("card")
+        verbose_name_plural = _("cards")
+        ordering = ("position", "id")
+
+    def __str__(self):
+        """The first line of the text, which names the card in the admin."""
+        title, _rest = self._split_first_line()
+        if title:
+            return title[:80]
+        return "%s %s" % (pgettext_lazy("content block", "Card"), self.position)
+
+    def _split_first_line(self):
+        """The first line of the text, as plain text, and the text without it."""
+        text = self.text or {}
+        blocks = list(text.get("blocks", []))
+        for index, block in enumerate(blocks):
+            line = strip_tags(str(block.get("data", {}).get("text", ""))).strip()
+            if line:
+                return unescape(line), {**text, "blocks": blocks[:index] + blocks[index + 1:]}
+        return "", text
+
+    @property
+    def accordion_title(self):
+        return str(self)
+
+    @property
+    def accordion_text(self):
+        """The text under the title of the accordion, which has its first line."""
+        return self._split_first_line()[1]

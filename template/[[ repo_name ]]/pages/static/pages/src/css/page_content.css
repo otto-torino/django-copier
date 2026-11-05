@@ -5,3 +5,55 @@
 .field-show_name input[type="checkbox"] {
     margin-right: .5rem;
 }
+/* the layouts of a columns block, see admin/pages/widgets/columns_layout.html */
+.columns-layouts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.columns-layout {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    width: 9rem;
+    padding: .5rem;
+    border: 2px solid var(--bs-border-color, #dee2e6);
+    border-radius: .375rem;
+    cursor: pointer;
+}
+
+.columns-layout:has(input:checked) {
+    border-color: var(--bs-primary, #0d6efd);
+}
+
+.columns-layout:has(input:focus-visible) {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+.columns-layout input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.columns-layout-drawing {
+    display: flex;
+    gap: 4px;
+    height: 2.5rem;
+}
+
+.columns-layout-drawing span {
+    background: var(--bs-secondary-bg, #e9ecef);
+    border-radius: 2px;
+}
+
+.columns-layout:has(input:checked) .columns-layout-drawing span {
+    background: var(--bs-primary, #0d6efd);
+}
+
+.columns-layout-label {
+    font-size: .875rem;
+    line-height: 1.2;
+}

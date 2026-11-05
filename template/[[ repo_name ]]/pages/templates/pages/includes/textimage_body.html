@@ -1,0 +1,27 @@
+{% load editor_js_filters %}
+{% comment %}
+Text and image, inside the accordion or not. The left column is as wide as
+left_column_width, the other one takes the rest: on large screens the same
+widths as ever. On small screens they stack, but a narrow side image stays next
+to the text, at most 96px wide and never larger than its own size.
+{% endcomment %}
+{% with side=obj.is_side_image narrow=obj.is_narrow_image position=obj.image_position %}
+<div class="flex gap-8 {% if not side %}flex-col{% elif not narrow %}flex-col md:flex-row{% endif %}" style="--column: {{ obj.left_column_width|default:50 }}%">
+    <div class="min-w-0 {% if position == 'top' or position == 'left' %}order-1{% endif %} {% if position == 'right' %}md:w-(--column) md:shrink-0{% if narrow %} flex-1 md:flex-none{% endif %}{% elif position == 'left' %}{% if narrow %}flex-1{% else %}md:flex-1{% endif %}{% endif %}">
+        {{ obj.text|render_editor_js }}
+    </div>
+    <div class="{% if narrow %}max-w-24 shrink-0 md:max-w-none{% endif %} {% if position == 'left' %}md:w-(--column) md:shrink-0{% elif position == 'right' %}md:flex-1{% endif %}">
+        <div class="js-pswp-gallery">
+            <a href="{{ obj.image.url }}" class="js-lightbox-item block cursor-zoom-in" data-pswp-width="{{ obj.image.width }}" data-pswp-height="{{ obj.image.height }}">
+                <img width="{{ obj.image.width }}" height="{{ obj.image.height }}" class="h-auto {% if narrow %}max-w-full md:w-full{% else %}w-full{% endif %}" src="{{ obj.image.url }}" alt="{{ obj.caption|default_if_none:'' }}" />
+                {% if obj.show_captions %}
+                    <span class="pswp-caption-content">{{ obj.caption|default_if_none:"" }} <em>{% if obj.credits %}by {{ obj.credits }}{% endif %}</em></span>
+                {% endif %}
+            </a>
+        </div>
+        {% if obj.show_captions and obj.caption or obj.show_captions and obj.credits %}
+            <p class="ml-2 mt-1 italic text-center">{{ obj.caption|default_if_none:"" }}{% if obj.credits and obj.caption %} - {% endif %}{{ obj.credits|default_if_none:"" }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}

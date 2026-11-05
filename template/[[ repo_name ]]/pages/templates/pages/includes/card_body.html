@@ -1,0 +1,14 @@
+{% load sorl_thumbnail editor_js_filters %}
+{% comment %}The image and the text of a card, in a flex container of the caller: obj is the block, text the text to show.{% endcomment %}
+{% if card.image %}
+    <div class="shrink-0 {% if obj.image_after_text %}order-last{% endif %} {% if obj.image_on_the_side %}w-[min(var(--image),6rem)] md:w-(--image){% else %}w-(--image) max-w-full{% endif %}">
+        {% if obj.ratio %}
+            {% thumbnail card.image obj.thumbnail_geometry crop=card.image.sorl as im %}
+                <img class="block w-full object-cover" style="aspect-ratio: {{ obj.ratio.0 }} / {{ obj.ratio.1 }}" src="{{ im.url }}" width="{{ im.width }}" height="{{ im.height }}" alt="{{ card.alt_text }}" loading="lazy" />
+            {% endthumbnail %}
+        {% else %}
+            <img class="block h-auto w-full" src="{{ card.image.url }}" width="{{ card.image.width }}" height="{{ card.image.height }}" alt="{{ card.alt_text }}" loading="lazy" />
+        {% endif %}
+    </div>
+{% endif %}
+<div class="min-w-0 flex-1 break-words">{{ text|render_editor_js }}</div>

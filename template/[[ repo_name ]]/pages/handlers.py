@@ -1,4 +1,5 @@
 import hashlib
+import html
 import http.client
 import ipaddress
 import socket
@@ -194,8 +195,10 @@ def _sanitize_entries(entries):
         thumbnail_url = thumbnails[0].get("url", "") if thumbnails else ""
         sanitized.append(
             {
-                "title": strip_tags(str(entry.get("title", ""))),
-                "summary": strip_tags(str(entry.get("summary", ""))),
+                # the template escapes them again: entities such as &#8230;
+                # become the characters they stand for, not their source
+                "title": html.unescape(strip_tags(str(entry.get("title", "")))),
+                "summary": html.unescape(strip_tags(str(entry.get("summary", "")))),
                 "link": _safe_external_url(entry.get("link", "")),
                 "thumbnail_url": _safe_external_url(thumbnail_url),
                 "published_parsed": entry.get("published_parsed"),

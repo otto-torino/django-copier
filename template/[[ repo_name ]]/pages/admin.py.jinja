@@ -19,15 +19,17 @@ from pages.admin_views import (
     SaveContentBlocksPositionView,
 )
 
-from .forms import PageContentMapItemAdminForm, PageForm
+from .forms import ColumnsLayoutWidget, PageContentMapItemAdminForm, PageForm
 from .models import (
     Page,
     PageContent,
     PageContentBoxItem,
     PageContentBoxMenu,
+    PageContentCard,
+    PageContentCards,
+    PageContentColumn,
+    PageContentColumns,
     PageContentImage,
-    PageContentLayout,
-    PageContentLayoutItem,
     PageContentMap,
     PageContentMapItem,
     PageContentMultiImage,
@@ -607,50 +609,115 @@ class PageContentVideoAdmin(PageContentAdmin):
 PageAdmin.register(PageContentVideo)
 
 
-class ContentLayoutItemInline([%% if use_translations %%]TranslationStackedInline[%% else %%]admin.StackedInline[%% endif %%]):
-    model = PageContentLayoutItem
-    extra = 1
-    fk_name = "layout"
+class ContentColumnInline([%% if use_translations %%]TranslationStackedInline[%% else %%]admin.StackedInline[%% endif %%]):
+    model = PageContentColumn
+    # content points to PageContent, the parent of the columns block too
+    fk_name = "block"
+    extra = 2
     classes = ("collapse-entry", "expand-first")
+    fields = ("content", "text", "text_position", "position")
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "content":  # Replace with your actual ForeignKey field name
-            parent_id = request.resolver_match.kwargs.get(
-                "object_id"
-            )  # Get parent instance ID
-            if parent_id:
-                try:
-                    parent_instance = PageContentLayout.objects.get(id=parent_id)
-                    kwargs["queryset"] = PageContent.objects.filter(
-                        page=parent_instance.page  # Adjust filtering based on parent model
-                    )
-                except PageContentLayout.DoesNotExist:
-                    pass  # Fallback if the parent instance is not found
+        if db_field.name == "content":
+            # the blocks of the page kept for the columns, the columns blocks
+            # excepted: one of them could end up in itself
+            object_id = request.resolver_match.kwargs.get("object_id")
+            if object_id:
+                page_id = (
+                    PageContentColumns.objects.filter(pk=object_id)
+                    .values_list("page_id", flat=True)
+                    .first()
+                )
             else:
                 page_id = request.GET.get("page")
-                if page_id:
-                    kwargs["queryset"] = PageContent.objects.filter(page_id=page_id)
+            kwargs["queryset"] = (
+                PageContent.objects.for_layout()
+                .filter(page_id=page_id)
+                .exclude(content_type__model="pagecontentcolumns")
+                .select_related("content_type")
+            )
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "content":
+            field.label_from_instance = lambda block: "%s (%s)" % (
+                block.name,
+                block.content_type.model_class()._meta.verbose_name,
+            )
+        return field
 
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-
-@admin.register(PageContentLayout)
-class PageContentLayoutAdmin(PageContentAdmin):
-    """Admin View for PageContentVideo"""
+@admin.register(PageContentColumns)
+class PageContentColumnsAdmin(PageContentAdmin):
+    """Admin View for PageContentColumns"""
 
     list_display = ("id", "name")
-    inlines = [ContentLayoutItemInline]
+    inlines = [ContentColumnInline]
     fieldsets = (
         (
             _("Main"),
             {
                 "fields": (
                     "name",
-                    "wrapper_css",
+                    "layout",
+                    "alignment",
                 ),
                 "classes": (
                     "baton-tabs-init",
-                    "baton-tab-inline-layout_items",
+                    "baton-tab-inline-columns",
+                    "baton-tab-fs-adv",
+                ),
+            },
+        ),
+        (
+            _("Advanced options"),
+            {
+                "classes": ("tab-fs-adv",),
+                "fields": (
+                    "enabled",
+                    "full_width",
+                    "show_name",
+                    "background_color",
+                    "divider",
+                ),
+            },
+        ),
+    )
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == "layout":
+            kwargs["widget"] = ColumnsLayoutWidget
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+
+PageAdmin.register(PageContentColumns)
+
+
+class ContentCardInline([%% if use_translations %%]TranslationStackedInline[%% else %%]admin.StackedInline[%% endif %%]):
+    model = PageContentCard
+    extra = 1
+    classes = ("collapse-entry", "expand-first")
+
+
+@admin.register(PageContentCards)
+class PageContentCardsAdmin(PageContentAdmin):
+    """Admin View for PageContentCards"""
+
+    list_display = ("id", "name")
+    inlines = [ContentCardInline]
+    fieldsets = (
+        (
+            _("Main"),
+            {
+                "fields": (
+                    "name",
+                    "columns",
+                    "image_position",
+                    "image_size",
+                    "aspect_ratio",
+                    "collapsible",
+                ),
+                "classes": (
+                    "baton-tabs-init",
+                    "baton-tab-inline-cards",
                     "baton-tab-fs-adv",
                 ),
             },
@@ -671,11 +738,5 @@ class PageContentLayoutAdmin(PageContentAdmin):
         ),
     )
 
-    baton_form_includes = [
-        ("pages/admin_includes/layout_grid.html", "wrapper_css", "right"),
-        ("pages/admin_includes/layout_grid_item.html", "css", "top"),
-    ]
 
-
-
-PageAdmin.register(PageContentLayout)
+PageAdmin.register(PageContentCards)

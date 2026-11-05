@@ -1,0 +1,15 @@
+{% load editor_js_filters %}
+<div class="{% if object.background_color %}p-2{% endif %}" style="background-color: {{ object.background_color }}">
+    {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
+    <div class="d-flex flex-wrap gap-3">
+        {% for column in object.columns.all %}
+            <div class="border rounded p-2" style="flex: 1 1 0; min-width: 10rem;">
+                {% if column.text and column.text_position == column.TextPosition.ABOVE %}{{ column.text|render_editor_js }}{% endif %}
+                {% if column.content %}
+                    <div class="text-muted small">{{ column.content.name }}</div>
+                {% endif %}
+                {% if column.text and column.text_position == column.TextPosition.BELOW %}{{ column.text|render_editor_js }}{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>

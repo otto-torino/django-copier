@@ -1,0 +1,22 @@
+{% load sorl_thumbnail editor_js_filters %}
+<div class="{% if object.background_color %}p-2{% endif %}" style="background-color: {{ object.background_color }}">
+    {% if object.show_name %}<h3 class="font-medium">{{ object.name }}</h3>{% endif %}
+    <div class="row g-3">
+        {% for card in object.cards.all %}
+            <div class="col-12 col-md-{% widthratio 12 object.columns 1 %} d-flex gap-3 {% if object.image_on_the_side %}align-items-start{% else %}flex-column{% endif %}">
+                {% if card.image %}
+                    <div class="flex-shrink-0 {% if object.image_after_text %}order-last{% endif %}" style="width: min({{ object.image_size }}px, 6rem)">
+                        {% if object.ratio %}
+                            {% thumbnail card.image object.thumbnail_geometry crop=card.image.sorl as im %}
+                                <img src="{{ im.url }}" alt="" style="width: 100%; aspect-ratio: {{ object.ratio.0 }} / {{ object.ratio.1 }}; object-fit: cover;">
+                            {% endthumbnail %}
+                        {% else %}
+                            <img src="{{ card.image.url }}" alt="" style="width: 100%; height: auto;">
+                        {% endif %}
+                    </div>
+                {% endif %}
+                <div>{{ card.text|render_editor_js }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>

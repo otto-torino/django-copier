@@ -1,13 +1,30 @@
+import tempfile
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import Context
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.translation import override
+from PIL import Image
 
-from .models import Page, PageContentText
+from .models import (
+    Page,
+    PageContentBoxItem,
+    PageContentBoxMenu,
+    PageContentCard,
+    PageContentCards,
+    PageContentColumn,
+    PageContentColumns,
+    PageContentMap,
+    PageContentText,
+    PageContentTextImage,
+)
 from .sitemap import PageSitemap
 from .templatetags.pages_tags import PageNode
 
@@ -218,3 +235,293 @@ class PageContentBlocksTests(TestCase):
 
         self.assertContains(response, "Visible text")
         self.assertContains(response, "Hidden text")
+
+
+class PageContentCardsTests(TestCase):
+    def setUp(self):
+        site = Site.objects.get_current()
+        site.domain = "testserver"
+        site.save()
+        Site.objects.clear_cache()
+        self.page = Page.objects.create(url="/staff/", title="Staff", status=Page.PUBLISHED)
+        self.page.sites.add(site)
+        self.media = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        override = override_settings(MEDIA_ROOT=self.media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def image(self):
+        content = BytesIO()
+        Image.new("RGB", (40, 40), "blue").save(content, "PNG")
+        return SimpleUploadedFile("foto.png", content.getvalue(), content_type="image/png")
+
+    def text(self, *lines):
+        return {"blocks": [{"type": "paragraph", "data": {"text": line}} for line in lines]}
+
+    def add_cards(self, **values):
+        block = PageContentCards.objects.create(
+            page=self.page,
+            content_type=ContentType.objects.get_for_model(PageContentCards),
+            name="Persone",
+            position=0,
+            **values,
+        )
+        block.object_id = block.pk
+        block.save()
+        return block
+
+    def test_cards_show_their_text_in_order(self):
+        block = self.add_cards(columns=3)
+        PageContentCard.objects.create(block=block, text=self.text("Second"), position=2)
+        PageContentCard.objects.create(
+            block=block, text=self.text("First", '<a href="mailto:first@iai.it">first@iai.it</a>'), position=1
+        )
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "lg:grid-cols-3")
+        self.assertContains(response, 'href="mailto:first@iai.it"')
+        content = response.content.decode()
+        self.assertLess(content.index(">First<"), content.index(">Second<"))
+
+    def test_the_image_has_the_place_and_the_width_of_the_block(self):
+        block = self.add_cards(image_position=PageContentCards.ImagePosition.RIGHT, image_size=120)
+        PageContentCard.objects.create(block=block, text=self.text("Persona"), image=self.image())
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, 'style="--image: 120px"')
+        self.assertContains(response, "order-last")
+        self.assertContains(response, "w-[min(var(--image),6rem)] md:w-(--image)")
+        self.assertContains(response, "aspect-ratio: 1 / 1")
+
+    def test_an_image_on_top_shown_whole(self):
+        block = self.add_cards(
+            image_position=PageContentCards.ImagePosition.TOP,
+            aspect_ratio=PageContentCards.AspectRatio.ORIGINAL,
+        )
+        PageContentCard.objects.create(block=block, text=self.text("Ufficio"), image=self.image())
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "flex-col")
+        self.assertContains(response, "w-(--image) max-w-full")
+        self.assertNotContains(response, "aspect-ratio")
+        self.assertNotContains(response, "order-last")
+
+    def test_the_crop_has_the_proportions_of_the_block_at_twice_the_width(self):
+        def geometry(ratio, size=150):
+            return PageContentCards(aspect_ratio=ratio, image_size=size).thumbnail_geometry
+
+        self.assertEqual(geometry("1:1"), "300x300")
+        self.assertEqual(geometry("16:9", 200), "400x225")
+        self.assertEqual(geometry("4:3"), "300x225")
+        self.assertIsNone(PageContentCards(aspect_ratio="original").ratio)
+
+    def test_a_card_is_named_by_the_first_line_of_its_text(self):
+        card = PageContentCard(text={"blocks": [{"type": "header", "data": {"text": "Alice &amp; Bob", "level": 3}}]})
+
+        self.assertEqual(str(card), "Alice & Bob")
+        self.assertTrue(str(PageContentCard(position=4)).endswith(" 4"))
+
+    def test_cards_as_accordions_are_closed_under_the_first_line_of_their_text(self):
+        block = self.add_cards(collapsible=True, columns=3)
+        PageContentCard.objects.create(
+            block=block,
+            image=self.image(),
+            text={
+                "blocks": [
+                    {"type": "header", "data": {"text": "Biblioteca", "level": 4}},
+                    {"type": "paragraph", "data": {"text": '<a href="mailto:library@iai.it">library@iai.it</a>'}},
+                ]
+            },
+        )
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "<details", count=1)
+        self.assertContains(response, ">Biblioteca</h3>")
+        self.assertNotContains(response, "<h4>Biblioteca</h4>")
+        self.assertContains(response, 'href="mailto:library@iai.it"')
+        self.assertNotContains(response, "lg:grid-cols-3")
+
+    def test_admin_adds_a_cards_block_to_the_page(self):
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+        response = self.client.get(f"{reverse('admin:pages_pagecontentcards_add')}?page={self.page.pk}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "cards-TOTAL_FORMS")
+        self.assertContains(response, 'name="image_size"')
+
+
+class PageContentColumnsTests(TestCase):
+    def setUp(self):
+        site = Site.objects.get_current()
+        site.domain = "testserver"
+        site.save()
+        Site.objects.clear_cache()
+        self.page = Page.objects.create(url="/sede/", title="Sede", status=Page.PUBLISHED)
+        self.page.sites.add(site)
+
+    def add_block(self, model, position, **values):
+        block = model.objects.create(
+            page=self.page,
+            content_type=ContentType.objects.get_for_model(model),
+            position=position,
+            **values,
+        )
+        block.object_id = block.pk
+        block.save()
+        return block
+
+    def test_columns_show_their_text_and_the_blocks_kept_for_them_only_there(self):
+        nested = self.add_block(
+            PageContentText,
+            0,
+            name="Orari",
+            layout_content=True,
+            content={"blocks": [{"type": "paragraph", "data": {"text": "Aperti dalle 9"}}]},
+        )
+        columns = self.add_block(
+            PageContentColumns, 1, name="Sede", layout=PageContentColumns.Layout.THIRD_TWO_THIRDS
+        )
+        PageContentColumn.objects.create(
+            block=columns,
+            position=1,
+            text={"blocks": [{"type": "paragraph", "data": {"text": "Via dei Montecatini"}}]},
+        )
+        PageContentColumn.objects.create(block=columns, position=2, content=nested)
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "md:grid-cols-[1fr_2fr]")
+        self.assertContains(response, "Via dei Montecatini")
+        # in its column only, not on its own in the page too
+        self.assertContains(response, "Aperti dalle 9", count=1)
+
+    def test_a_map_in_a_column_loads_leaflet(self):
+        map_block = self.add_block(PageContentMap, 0, name="Mappa", layout_content=True)
+        columns = self.add_block(PageContentColumns, 1, name="Sede")
+        PageContentColumn.objects.create(block=columns, content=map_block)
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "leaflet/leaflet.js")
+        self.assertContains(response, f'id="map{map_block.pk}"')
+
+    def test_a_columns_block_cannot_be_placed_in_a_column(self):
+        inner = self.add_block(PageContentColumns, 0, name="Interno", layout_content=True)
+        outer = self.add_block(PageContentColumns, 1, name="Esterno")
+
+        with self.assertRaises(ValidationError) as error:
+            PageContentColumn(block=outer, content=inner).full_clean()
+
+        self.assertIn("content", error.exception.message_dict)
+
+    def test_a_column_takes_a_block_of_its_page_only(self):
+        other = Page.objects.create(url="/altra/", title="Altra")
+        foreign = PageContentText.objects.create(
+            page=other,
+            content_type=ContentType.objects.get_for_model(PageContentText),
+            name="Altrove",
+            layout_content=True,
+            position=0,
+        )
+        columns = self.add_block(PageContentColumns, 0, name="Sede")
+
+        with self.assertRaises(ValidationError) as error:
+            PageContentColumn(block=columns, content=foreign).full_clean()
+
+        self.assertIn("content", error.exception.message_dict)
+
+    def test_admin_draws_the_layouts_and_offers_the_blocks_kept_for_the_columns(self):
+        self.add_block(PageContentText, 0, name="Per le colonne", layout_content=True)
+        self.add_block(PageContentText, 1, name="Nella pagina")
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+        response = self.client.get(f"{reverse('admin:pages_pagecontentcolumns_add')}?page={self.page.pk}")
+
+        self.assertContains(response, 'class="columns-layout-drawing"', count=len(PageContentColumns.Layout))
+        self.assertContains(response, "Per le colonne (")
+        self.assertNotContains(response, "Nella pagina (")
+
+    def test_admin_changes_a_columns_block(self):
+        self.add_block(PageContentText, 0, name="Per le colonne", layout_content=True)
+        columns = self.add_block(PageContentColumns, 1, name="Sede")
+        PageContentColumn.objects.create(block=columns)
+        self.client.force_login(
+            get_user_model().objects.create_superuser("admin", "admin@example.com", "password")
+        )
+
+        response = self.client.get(reverse("admin:pages_pagecontentcolumns_change", args=[columns.pk]))
+
+        self.assertContains(response, "Per le colonne (")
+
+
+class TextImageAndBoxMenuTests(TestCase):
+    def setUp(self):
+        site = Site.objects.get_current()
+        site.domain = "testserver"
+        site.save()
+        Site.objects.clear_cache()
+        self.page = Page.objects.create(url="/blocchi/", title="Blocchi", status=Page.PUBLISHED)
+        self.page.sites.add(site)
+        self.media = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        override = override_settings(MEDIA_ROOT=self.media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def image(self, name="foto.png"):
+        content = BytesIO()
+        Image.new("RGB", (40, 40), "blue").save(content, "PNG")
+        return SimpleUploadedFile(name, content.getvalue(), content_type="image/png")
+
+    def add_block(self, model, **values):
+        block = model.objects.create(
+            page=self.page,
+            content_type=ContentType.objects.get_for_model(model),
+            position=self.page.content_blocks.count(),
+            **values,
+        )
+        block.object_id = block.pk
+        block.save()
+        return block
+
+    def test_a_side_image_up_to_a_quarter_wide_is_narrow(self):
+        def narrow(position, width):
+            return PageContentTextImage(image_position=position, left_column_width=width).is_narrow_image
+
+        self.assertTrue(narrow("left", 15))
+        self.assertTrue(narrow("right", 80))
+        self.assertFalse(narrow("left", 50))
+        self.assertFalse(narrow("right", 50))
+        self.assertFalse(narrow("top", 15))
+
+    def test_text_and_image_render_the_same_markup_with_and_without_accordion(self):
+        text = {"blocks": [{"type": "paragraph", "data": {"text": "Testo del blocco"}}]}
+        self.add_block(PageContentTextImage, name="Aperto", text=text, image=self.image(), image_position="left", left_column_width=15)
+        self.add_block(PageContentTextImage, name="Chiuso", text=text, image=self.image(), image_position="left", left_column_width=15, use_accordion=True)
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, "Testo del blocco", count=2)
+        self.assertContains(response, 'style="--column: 15%"', count=2)
+        self.assertContains(response, "max-w-24 shrink-0", count=2)
+
+    def test_the_boxes_are_links(self):
+        menu = self.add_block(PageContentBoxMenu, name="Menu")
+        PageContentBoxItem.objects.create(block=menu, name="Persone", link="/p/staff/", file=self.image("box.png"))
+        PageContentBoxItem.objects.create(block=menu, name="Contatti", link="/p/contatti/")
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, 'href="/p/staff/"')
+        self.assertContains(response, 'href="/p/contatti/"')
+        self.assertNotContains(response, "window.location")

@@ -237,3 +237,24 @@ class RSSFeedViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "RSS feed is temporarily unavailable")
+
+    @patch("pages.views.consume_rss_feed")
+    def test_entities_of_the_feed_become_characters_and_markup_stays_escaped(self, consume):
+        consume.return_value = _sanitize_entries(
+            [{"title": "Europa &amp; Italia", "summary": "&lt;b&gt;Analisi&lt;/b&gt; [&#8230;]"}]
+        )
+
+        response = self.client.get(self.content_url())
+
+        self.assertContains(response, "Europa &amp; Italia")
+        self.assertContains(response, "&lt;b&gt;Analisi&lt;/b&gt; […]")
+        self.assertNotContains(response, "&amp;#8230;")
+
+    def test_the_page_downloads_the_entries_of_the_feed(self):
+        self.block.object_id = self.block.pk
+        self.block.save()
+
+        response = self.client.get(self.page.get_absolute_url())
+
+        self.assertContains(response, f'data-rss-feed="{self.content_url()}"')
+        self.assertNotContains(response, "hx-get")

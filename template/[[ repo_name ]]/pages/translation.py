@@ -5,9 +5,11 @@ from .models import (
     PageContent,
     PageContentBoxItem,
     PageContentBoxMenu,
+    PageContentCard,
+    PageContentCards,
+    PageContentColumn,
+    PageContentColumns,
     PageContentImage,
-    PageContentLayout,
-    PageContentLayoutItem,
     PageContentMap,
     PageContentMapItem,
     PageContentMultiImage,
@@ -90,13 +92,25 @@ class PageContentVideoTranslationOptions(TranslationOptions):
     fields = ("description",)
 
 
-@register(PageContentLayout)
-class PageContentLayoutTranslationOptions(TranslationOptions):
-    fields = ()
+@register(PageContentColumns)
+class PageContentColumnsTranslationOptions(TranslationOptions):
+    pass
 
-@register(PageContentLayoutItem)
-class PageContentLayoutItemTranslationOptions(TranslationOptions):
-    fields = ('text', )
+
+@register(PageContentColumn)
+class PageContentColumnTranslationOptions(TranslationOptions):
+    fields = ("text",)
+
+
+@register(PageContentCards)
+class PageContentCardsTranslationOptions(TranslationOptions):
+    pass
+
+
+@register(PageContentCard)
+class PageContentCardTranslationOptions(TranslationOptions):
+    fields = ("text", "alt_text")
+
 
 # @register(PageContentTransport)
 # class PageContentTransportTranslationOptions(TranslationOptions):

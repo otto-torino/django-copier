@@ -170,6 +170,216 @@ msgstr ""
 msgid "Coordinates"
 msgstr "Coordinate"
 
+
+#: models.py
+msgid "only inside columns"
+msgstr "solo dentro le colonne"
+
+#: models.py
+msgid "the block is not shown on its own: place it in a column of a columns block"
+msgstr "il blocco non viene mostrato da solo: mettilo in una colonna di un blocco colonne"
+
+#: models.py
+msgid "The link contains invalid characters."
+msgstr "Il link contiene caratteri non validi."
+
+#: models.py
+msgid "Enter a valid link."
+msgstr "Inserisci un link valido."
+
+#: models.py
+msgid "Links must be relative URLs or use HTTP or HTTPS."
+msgstr "I link devono essere URL relativi oppure usare HTTP o HTTPS."
+
+#: models.py
+msgid "video link or id"
+msgstr "link o id del video"
+
+#: models.py
+msgid "Paste the link of the video: the platform is recognised by itself. Or write its id: for YouTube the code after v=, for Vimeo the number, followed by ?h= and its code for an unlisted video, for Twitch clip= and the name of the clip."
+msgstr "Incolla il link del video: la piattaforma viene riconosciuta da sola. Oppure scrivi il suo id: per YouTube il codice dopo v=, per Vimeo il numero, seguito da ?h= e dal suo codice per un video non in elenco, per Twitch clip= e il nome della clip."
+
+#: models.py
+msgid "This is not a link to a YouTube, Vimeo or Twitch video."
+msgstr "Questo non è il link di un video di YouTube, Vimeo o Twitch."
+
+#: models.py
+msgid "Two equal columns"
+msgstr "Due colonne uguali"
+
+#: models.py
+msgid "Three equal columns"
+msgstr "Tre colonne uguali"
+
+#: models.py
+msgid "Four equal columns"
+msgstr "Quattro colonne uguali"
+
+#: models.py
+msgid "One third and two thirds"
+msgstr "Un terzo e due terzi"
+
+#: models.py
+msgid "Two thirds and one third"
+msgstr "Due terzi e un terzo"
+
+#: models.py
+msgid "One quarter and three quarters"
+msgstr "Un quarto e tre quarti"
+
+#: models.py
+msgid "Three quarters and one quarter"
+msgstr "Tre quarti e un quarto"
+
+#: models.py
+msgid "Center"
+msgstr "Al centro"
+
+#: models.py
+msgid "layout"
+msgstr "disposizione"
+
+#: models.py
+msgid "more columns than the layout has go to a new row"
+msgstr "le colonne oltre quelle della disposizione vanno a capo"
+
+#: models.py
+msgid "vertical alignment"
+msgstr "allineamento verticale"
+
+#: models.py
+msgid "columns block"
+msgstr "blocco colonne"
+
+#: models.py
+msgid "columns blocks"
+msgstr "blocchi colonne"
+
+#: models.py
+msgid "Columns"
+msgstr "Colonne"
+
+#: models.py
+msgid "Columns side by side with text and blocks of the page, such as a map or a carousel"
+msgstr "Colonne affiancate con testo e blocchi della pagina, come una mappa o un carosello"
+
+#: models.py
+msgid "Above the block"
+msgstr "Sopra il blocco"
+
+#: models.py
+msgid "Below the block"
+msgstr "Sotto il blocco"
+
+#: models.py
+msgid "block"
+msgstr "blocco"
+
+#: models.py
+msgid "a block of this page marked as \"only inside columns\", such as a map or a carousel"
+msgstr "un blocco di questa pagina segnato \"solo dentro le colonne\", come una mappa o un carosello"
+
+#: models.py
+msgid "text position"
+msgstr "posizione del testo"
+
+#: models.py
+msgid "column"
+msgstr "colonna"
+
+#: models.py
+msgid "Column"
+msgstr "Colonna"
+
+#: models.py
+msgid "A columns block cannot be placed in a column."
+msgstr "Un blocco colonne non può stare in una colonna."
+
+#: models.py
+msgid "The block must belong to the same page."
+msgstr "Il blocco deve appartenere alla stessa pagina."
+
+#: models.py
+msgid "Original"
+msgstr "Originali"
+
+#: models.py
+msgid "maximum number of cards per row, on small screens they stack"
+msgstr "numero massimo di schede per riga, sugli schermi piccoli vanno in colonna"
+
+#: models.py
+msgid "where the image is, compared to the text"
+msgstr "dove sta l'immagine rispetto al testo"
+
+#: models.py
+msgid "image width (px)"
+msgstr "larghezza dell'immagine (px)"
+
+#: models.py
+msgid "on small screens an image on the side of the text is at most 96px wide"
+msgstr "sugli schermi piccoli un'immagine a fianco del testo è larga al massimo 96px"
+
+#: models.py
+msgid "proportions"
+msgstr "proporzioni"
+
+#: models.py
+msgid "the images are cropped to these proportions around their subject; original shows them whole, as icons"
+msgstr "le immagini vengono ritagliate a queste proporzioni attorno al soggetto; con «Originali» si vedono intere, come le icone"
+
+#: models.py
+msgid "cards as accordions"
+msgstr "schede come accordion"
+
+#: models.py
+msgid "each card is closed under the first line of its text and opens to show the image and the rest; the columns do not count"
+msgstr "ogni scheda è chiusa sotto la prima riga del suo testo e si apre per mostrare l'immagine e il resto; le colonne non contano"
+
+#: models.py
+msgid "cards block"
+msgstr "blocco schede"
+
+#: models.py
+msgid "cards blocks"
+msgstr "blocchi schede"
+
+#: models.py
+msgctxt "content block"
+msgid "Cards"
+msgstr "Schede"
+
+#: models.py
+msgid "Grid of cards with an image and a text: people, offices, contacts"
+msgstr "Griglia di schede con un'immagine e un testo: persone, uffici, contatti"
+
+#: models.py
+msgid "Leave it empty when the text already says what the image shows."
+msgstr "Lascialo vuoto quando il testo dice già cosa mostra l'immagine."
+
+#: models.py
+msgid "card"
+msgstr "scheda"
+
+#: models.py
+msgid "cards"
+msgstr "schede"
+
+#: models.py
+msgctxt "content block"
+msgid "Card"
+msgstr "Scheda"
+
+#: models.py
+msgid "Blocks only inside columns: they are not shown on their own, place them in a column of a columns block."
+msgstr "Blocchi solo dentro le colonne: non vengono mostrati da soli, mettili in una colonna di un blocco colonne."
+
+#: models.py
+msgid "No blocks only inside columns"
+msgstr "Nessun blocco solo dentro le colonne"
+
+#: models.py
+msgid "Loading…"
+msgstr "Caricamento…"
 #~ msgid "draft"
 #~ msgstr "bozza"
 

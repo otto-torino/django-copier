@@ -1,0 +1,12 @@
+{% comment %}The layouts of a columns block: a radio for each, drawn as boxes as wide as its columns.{% endcomment %}
+<div class="columns-layouts"{% if widget.attrs.id %} id="{{ widget.attrs.id }}"{% endif %}>
+    {% for group, options, index in widget.optgroups %}
+        {% for option in options %}
+            <label class="columns-layout" for="{{ option.attrs.id }}">
+                <input type="{{ option.type }}" name="{{ option.name }}" value="{{ option.value|stringformat:'s' }}"{% include "django/forms/widgets/attrs.html" with widget=option %}>
+                <span class="columns-layout-drawing" aria-hidden="true">{% for width in option.widths %}<span style="flex: {{ width }}"></span>{% endfor %}</span>
+                <span class="columns-layout-label">{{ option.label }}</span>
+            </label>
+        {% endfor %}
+    {% endfor %}
+</div>

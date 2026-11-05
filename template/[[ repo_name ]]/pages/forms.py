@@ -80,3 +80,14 @@ class PageContentMapItemAdminForm(forms.ModelForm):
             # drawn as the shape chosen in the same row
             "coordinates": MapDrawerWidget(shape_field="shape"),
         }
+
+
+class ColumnsLayoutWidget(forms.RadioSelect):
+    """The layouts of a columns block, each drawn as boxes of its widths."""
+
+    template_name = "admin/pages/widgets/columns_layout.html"
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        option["widths"] = [int(width) for width in str(value).split("-")] if value else []
+        return option

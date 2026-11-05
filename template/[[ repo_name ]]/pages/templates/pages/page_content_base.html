@@ -1,5 +1,10 @@
-<div id="{{obj.get_unique_id}}" class="{% if not obj.use_accordion %} mb-8 {% endif %} {% if obj.background_color %} py-4 {% endif %}" style="background-color: {{ obj.background_color }}">
-  <div class="relative px-5 {% if not obj.full_width %} md:max-w-5xl md:mx-auto {% endif %}">
+{% comment %}
+Blocks are 2rem apart. Accordions one after the other form a single group: an
+accordion has the margin only before a block that is not an accordion. In a
+column a block has neither the margin nor the container of the page.
+{% endcomment %}
+<div id="{{ obj.get_unique_id }}" class="{% if in_columns %}{% elif obj.use_accordion %}{% include 'pages/includes/accordion_spacing.html' %}{% else %}mb-8{% endif %}{% if obj.background_color %} py-4{% endif %}"{% if obj.use_accordion and not in_columns %} data-accordion{% endif %}{% if obj.background_color %} style="background-color: {{ obj.background_color }}"{% endif %}>
+  <div class="relative{% if not in_columns %} px-5{% if not obj.full_width %} md:max-w-5xl md:mx-auto{% endif %}{% endif %}">
     {% if obj.show_name %}
       <a {% if obj.url %}href={{ obj.url }}{% endif %} class="{% if not obj.url %}pointer-events-none{% endif %}">
         <h3>{{ obj.name }}</h3>
@@ -7,19 +12,4 @@
     {% endif %}
     {% block inner_block %}{% endblock inner_block %}
   </div>
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const currentElement = document.getElementById("{{ obj.get_unique_id }}");
-      if (currentElement) {
-        const nextSibling = currentElement.nextElementSibling;
-        if (
-          nextSibling &&
-          !nextSibling.id.startsWith("Text") &&
-          !nextSibling.id.startsWith("Attachment")
-        ) {
-          currentElement.classList.add("mb-8");
-        }
-      }
-    });
-  </script>
 </div>

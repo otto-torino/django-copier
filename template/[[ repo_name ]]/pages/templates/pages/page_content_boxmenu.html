@@ -1,49 +1,30 @@
 {% extends 'pages/page_content_base.html' %}
-{% load sorl_thumbnail components %}
+{% load sorl_thumbnail %}
+{% comment %}
+Boxes that link to other pages: on small screens wide banners one under the
+other, on large ones squares in rows of at most `columns`. Each box is a link,
+reachable with the keyboard. The background image is cropped twice, wide for
+the banner and square for the box, under a veil of the background colour;
+without an image the box has the colour only. The icon is decorative: the name
+says where the box leads.
+{% endcomment %}
 
 {% block inner_block %}
-<div class="flex flex-col justify-center md:flex-row md:align-top flex-wrap container">
-  {% for im in obj.images.all %}
-    <div class="hidden md:flex flex-col justify-start p-2" style="flex-basis: {{obj.basis}};">
-      {% if im.file %}
-        {% thumbnail im.file "400x400" crop=im.file.sorl as cropped %}
-          <div 
-            onclick="window.location.assign('{{ im.link }}');" 
-            class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} shadow-md relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" 
-            style="border-radius: {{obj.rounding}}px; aspect-ratio : 1 / 1; {% if im.file and im.bg_color %} background:linear-gradient(0deg, {{im.bg_color}}80, {{im.bg_color}}80), url({{cropped.url}});{% elif im.file %} background-image: url({{cropped.url}}); {% else %} background-color:{{im.bg_color}}; {% endif %}">
-        {% endthumbnail %}
-      {% else %}
-        <div onclick="window.location.assign('{{ im.link }}');" class="h-auto w-full p-3 min-w-[13rem] {% if obj.rectangular %}max-h-[13rem]{% endif %} shadow-md  relative flex justify-center items-center bg-cover {% if obj.zoom %} transform transition duration-200 hover:scale-105 {% endif %} cursor-pointer" style="border-radius: {{obj.rounding}}px; aspect-ratio : 1 / 1; background-color:{{im.bg_color}};">
-      {% endif %}
-          <div class="flex flex-col gap-5 items-center w-full">
-            {% if im.icon %}
-              <img src="{{im.icon.url}}" class="text-slate-50 h-32 ml-0 {% if im.shadow %}drop-shadow-[0_0_5px_rgba(0,0,0,0.5)]{% endif %}" alt="{{im.name}}"/>
-            {% endif %}
-            <span class="text-slate-50 ms-0 text-center font-bold">
-              <p class="text-xl font-display" style="color:{{im.text_color}}; {% if im.shadow %}text-shadow: rgba(0,0,0,0.5) 0 0 5px;{% endif %}">
-                {{im.name}}
-              </p>
-            </span>
-          </div>
-        </div>
-    </div>
-    <div class="mb-6 w-full max-w-full flex flex-col gap-5 items-center md:hidden">
-    {% if im.file %}
-      {% thumbnail im.file "800x200" crop=im.file.sorl as cropped %}
-        <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px;  {% if im.file and im.bg_color %} background:linear-gradient(0deg, {{im.bg_color}}80, {{im.bg_color}}80), url({{cropped.url}}); {% elif im.file %} background-image: url({{cropped.url}}); {% else %} background-color:{{im.bg_color}}; {% endif %}">
-      {% endthumbnail %}
-    {% else %}
-      <div onclick="window.location.assign('{{ im.link }}');" class="px-7 h-52 w-full max-w-full shadow-md relative flex  items-center bg-cover" style="border-radius: {{obj.rounding}}px; background-color:{{im.bg_color}};">
-    {% endif %}
-        <div class="flex flex-row items-center">
-          {% if im.icon %}
-            <img src="{{im.icon.url}}" class="text-slate-50 h-32 {% if im.shadow %}drop-shadow-[0_0_5px_rgba(0,0,0,0.5)]{% endif %}" alt="{{im.name}}"/>
-          {% endif %}
-          <span class="text-slate-50 ms-6 lg:ms-0 text-3xl font-bold font-display" style="color:{{im.text_color}}; {% if im.shadow %}text-shadow: rgba(0,0,0,0.5) 0 0 5px;{% endif %}">{{im.name}}</span>
-        </div>
-      </div>
-    </div>
-  {% endfor %}
-</div>
+    <ul class="container m-0 flex list-none flex-col p-0 md:flex-row md:flex-wrap md:justify-center">
+        {% for box in obj.images.all %}
+            <li class="mt-0! mb-6 md:mb-0 md:flex md:basis-(--basis) md:flex-col md:p-2" style="--basis: {{ obj.basis }}">
+                {% if box.file %}
+                    {% thumbnail box.file "800x300" crop=box.file.sorl as wide %}{% thumbnail box.file "400x400" crop=box.file.sorl as square %}
+                        <a class="{% include 'pages/includes/boxmenu_box_classes.html' %}" href="{{ box.link }}" style="border-radius: {{ obj.rounding }}px; background-color: {{ box.bg_color }}; --wide: linear-gradient({{ box.bg_color }}80, {{ box.bg_color }}80), url('{{ wide.url }}'); --square: linear-gradient({{ box.bg_color }}80, {{ box.bg_color }}80), url('{{ square.url }}')">
+                            {% include 'pages/includes/boxmenu_box_content.html' %}
+                        </a>
+                    {% endthumbnail %}{% endthumbnail %}
+                {% else %}
+                    <a class="{% include 'pages/includes/boxmenu_box_classes.html' %}" href="{{ box.link }}" style="border-radius: {{ obj.rounding }}px; background-color: {{ box.bg_color }}">
+                        {% include 'pages/includes/boxmenu_box_content.html' %}
+                    </a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
 {% endblock %}
-

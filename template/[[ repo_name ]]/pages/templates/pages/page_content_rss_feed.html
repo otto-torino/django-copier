@@ -1,4 +1,23 @@
-<div class="{% if obj.background_color %}px-4 py-4{% else %}py-2{% endif %} rounded-lg" style="background-color: {{ obj.background_color }}">
-    {% if obj.show_name %}<h2 class="text-2xl text-corange mb-4">{{ obj.name }}</h2>{% endif %}
-    <div hx-trigger="load" hx-get="{% url 'pages:page-rss-feed-content' obj.id %}"></div>
-</div>
+{% extends 'pages/page_content_base.html' %}
+{% load i18n %}
+{% comment %}
+The entries of the feed arrive after the page, from
+page_content_rss_feed_content.html: downloading a feed can take a while and
+must not hold the page back.
+{% endcomment %}
+
+{% block inner_block %}
+    <div data-rss-feed="{% url 'pages:page-rss-feed-content' obj.id %}" aria-busy="true">
+        <p class="text-base-content/70">{% trans "Loading…" %}</p>
+    </div>
+    <script>
+        (function () {
+            const target = document.currentScript.previousElementSibling;
+            fetch(target.dataset.rssFeed, { credentials: "same-origin" })
+                .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
+                .then((html) => { target.innerHTML = html; })
+                .catch(() => { target.replaceChildren(); })
+                .finally(() => target.removeAttribute("aria-busy"));
+        })();
+    </script>
+{% endblock inner_block %}

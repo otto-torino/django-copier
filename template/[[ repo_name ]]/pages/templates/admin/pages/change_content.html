@@ -122,7 +122,7 @@
             {% endif %}
 
             <hr style="margin: 40px 0 30px" />
-            <p class="mb-4">{% trans "Only layout blocks: blocks that can be used inside a layout block but not displayed standalone as content." %}</p>
+            <p class="mb-4">{% trans "Blocks only inside columns: they are not shown on their own, place them in a column of a columns block." %}</p>
             {% if page.content_blocks.for_layout.count %}
                 <div id="layout-blocks-list">
                     {% for content_block in page.content_blocks.for_layout %}
@@ -163,7 +163,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="alert alert-info mb-0">{% trans "No layout blocks" %}</div>
+                <div class="alert alert-info mb-0">{% trans "No blocks only inside columns" %}</div>
             {% endif %}
             </form>
             <form
