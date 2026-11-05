@@ -81,13 +81,3 @@ class SaveContentBlocksPositionView(PermissionRequiredMixin, View):
             content_block.save()
 
         return JsonResponse({"saved": True})
-
-
-class PageContentMapDrawerView(PermissionRequiredMixin, View):
-    permission_required = ["pages.add_page", "pages.change_page"]
-
-    def get(self, request):
-        ctx = {
-            "item_id": request.GET.get("itemId", None),
-        }
-        return render(request, "pages/widgets/page_content_map_drawer.html", ctx)

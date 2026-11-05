@@ -1,0 +1,17 @@
+{% load i18n %}
+<div class="map-drawer"
+     data-map-drawer
+     {% if widget.shape %}data-shape="{{ widget.shape }}"{% endif %}
+     {% if widget.shape_field %}data-shape-field="{{ widget.shape_field }}"{% endif %}
+     data-search-placeholder="{% trans "Search an address or a place" %}"
+     data-search-label="{% trans "Search" %}"
+     data-search-empty="{% trans "No place found." %}"
+     data-search-error="{% trans "The search is not available right now." %}">
+    <div class="map-drawer__map" style="height: {{ widget.height }}px"></div>
+    <p class="map-drawer__help">{% trans "Draw with the tools on the left: move the map, drag the shape and its vertices to fix it. Search an address to go there." %}</p>
+    {% comment %}Not a <details>: Baton opens all of them in the fieldsets.{% endcomment %}
+    <button type="button" class="map-drawer__raw-toggle" aria-expanded="false" aria-controls="{{ widget.attrs.id }}_raw">{% trans "Coordinates" %}</button>
+    <div class="map-drawer__raw" id="{{ widget.attrs.id }}_raw" hidden>
+        {% include "django/forms/widgets/textarea.html" %}
+    </div>
+</div>

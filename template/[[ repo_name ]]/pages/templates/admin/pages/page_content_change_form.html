@@ -1,14 +1,6 @@
 {% extends 'admin/change_form.html' %}
 {% load i18n static %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <script>
-        window.jQuery = Baton.jQuery;
-    </script>
-    <script src="{% static 'pages/src/js/osmdrawer.min.js' %}"></script>
-{% endblock extrahead %}
-
 {% if not is_popup %}
   {% block breadcrumbs %}
     <div class="breadcrumbs">

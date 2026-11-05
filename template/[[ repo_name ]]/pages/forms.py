@@ -1,8 +1,10 @@
-from .widgets import MapWidget
 from django import forms
 from django.conf import settings
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
+
+from core.fields import MapShapeFormField
+from core.widgets import MapDrawerWidget
 
 from .models import Page, PageContentMapItem
 
@@ -71,6 +73,10 @@ class PageContentMapItemAdminForm(forms.ModelForm):
     class Meta:
         model = PageContentMapItem
         fields = "__all__"
+        field_classes = {
+            "coordinates": MapShapeFormField,
+        }
         widgets = {
-            "coordinates": MapWidget,
+            # drawn as the shape chosen in the same row
+            "coordinates": MapDrawerWidget(shape_field="shape"),
         }

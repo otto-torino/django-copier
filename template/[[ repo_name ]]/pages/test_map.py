@@ -104,6 +104,15 @@ class MapContentTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["coordinates"], [45.0, 7.0])
 
+    def test_admin_form_draws_the_shape_of_the_row_starting_empty(self):
+        form = PageContentMapItemAdminForm(prefix="items-0")
+
+        html = str(form["coordinates"])
+
+        self.assertIn('data-shape-field="shape"', html)
+        self.assertNotIn("null", html)
+        self.assertIn("map_drawer.js", str(form.media))
+
     def test_map_links_allow_only_relative_or_http_urls(self):
         self.map_item(link="/contacts/").full_clean()
         self.map_item(link="https://example.com/place").full_clean()

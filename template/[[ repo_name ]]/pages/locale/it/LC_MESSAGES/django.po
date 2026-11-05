@@ -147,6 +147,29 @@ msgstr "pagina"
 msgid "pages"
 msgstr "pagine"
 
+#: core/templates/core/widgets/map_drawer.html
+msgid "Search an address or a place"
+msgstr "Cerca un indirizzo o un luogo"
+
+msgid "Search"
+msgstr "Cerca"
+
+msgid "No place found."
+msgstr "Nessun luogo trovato."
+
+msgid "The search is not available right now."
+msgstr "La ricerca ora non è disponibile."
+
+msgid ""
+"Draw with the tools on the left: move the map, drag the shape and its "
+"vertices to fix it. Search an address to go there."
+msgstr ""
+"Disegna con gli strumenti a sinistra: trascina la forma e i suoi vertici "
+"per correggerla. Cerca un indirizzo per spostarti lì."
+
+msgid "Coordinates"
+msgstr "Coordinate"
+
 #~ msgid "draft"
 #~ msgstr "bozza"
 
