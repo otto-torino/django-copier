@@ -64,13 +64,14 @@ def render_page(request, p):
     else:
         template = loader.get_template(DEFAULT_TEMPLATE)
 
-    date = p.modified
-    for block in p.content_blocks.for_content().enabled():
-        if block.modified > date:
-            date = block.modified
+    # One list for the date and the template, with the contents of the
+    # blocks loaded with a query for each kind of block, not for each block
+    blocks = list(p.content_blocks.for_content().enabled().prefetch_related("content_object"))
+    date = max([p.modified, *(block.modified for block in blocks)])
 
     context = {
         "page": p,
+        "content_blocks": blocks,
         "updated": date,
         "related_content": get_related_content(p, request),
     }

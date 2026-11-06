@@ -18,6 +18,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.html import strip_tags
 from django.utils.translation import gettext as _, ngettext, pgettext_lazy
 from django_extensions.db.models import TimeStampedModel
@@ -198,11 +199,19 @@ class Page(TimeStampedModel, Searchable):
             kwargs={"url": self.url.strip("/")},
         )
 
+    @cached_property
+    def enabled_block_models(self):
+        """The models of the enabled blocks, also inside columns: one query for
+        all the scripts and styles the page needs."""
+        return set(
+            self.content_blocks.filter(enabled=True).values_list(  # pyright: ignore
+                "content_type__model", flat=True
+            )
+        )
+
     def has_map_content(self):
         """Whether a block needs Leaflet, also inside columns."""
-        return self.content_blocks.filter(  # pyright: ignore
-            enabled=True, content_type__model="pagecontentmap"
-        ).exists()
+        return "pagecontentmap" in self.enabled_block_models
 
     @property
     def breadcrumbs(self):
@@ -285,10 +294,12 @@ class PageContent(TimeStampedModel):
     objects = PageContentQuerySet.as_manager()
 
     def save(self, *args, **kwargs):
-        if self and self.page:
-            self.page.modified = timezone.now()
-            self.page.save()
-        super(PageContent, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
+        # The page tells when it was last updated. An update of the date, not
+        # a save of the page: the block, saving, already has the page indexed
+        # again, and a save of the page would do it once more for each block.
+        if self.page_id:
+            Page.objects.filter(pk=self.page_id).update(modified=timezone.now())
 
     def class_name(self):
         raise NotImplementedError
@@ -323,9 +334,14 @@ class PageContent(TimeStampedModel):
     def get_render_template(self):
         raise NotImplementedError
 
+    # the id of the block in the page: the name of its model without
+    # "PageContent", followed by its pk; a model can set a prefix of its own
+    unique_id_prefix = None
+
     @property
     def get_unique_id(self):
-        raise NotImplementedError
+        prefix = self.unique_id_prefix or type(self).__name__.removeprefix("PageContent")
+        return "%s%s" % (prefix, self.pk)
 
     def __str__(self):
         return f"{self.name}"
@@ -382,10 +398,6 @@ class PageContentText(PageContent, AccordionBlock):
     def get_render_template(self):
         return "pages/page_content_text.html"
 
-    @property
-    def get_unique_id(self):
-        return "Text" + str(self.pk)
-
 
 class PageContentImage(PageContent):
     image = BatonAiImageField(
@@ -440,10 +452,6 @@ class PageContentImage(PageContent):
 
     def get_render_template(self):
         return "pages/page_content_image.html"
-
-    @property
-    def get_unique_id(self):
-        return "Image" + str(self.pk)
 
 
 class PageContentTextImage(PageContent, AccordionBlock):
@@ -532,10 +540,6 @@ class PageContentTextImage(PageContent, AccordionBlock):
         image_column = left if self.image_position == "left" else 100 - left
         return image_column <= 25
 
-    @property
-    def get_unique_id(self):
-        return "TextImage" + str(self.pk)
-
 
 class PageContentMultiImage(PageContent):
     CHOICES = (
@@ -610,10 +614,6 @@ class PageContentMultiImage(PageContent):
 
     def get_carousel_id(self):
         return f"carousel-{self.pk}"
-
-    @property
-    def get_unique_id(self):
-        return "MultiImage" + str(self.pk)
 
 
 class PageContentMultiImageItem(models.Model):
@@ -716,10 +716,6 @@ class PageContentBoxMenu(PageContent):
     def get_carousel_id(self):
         return f"carousel-{self.pk}"
 
-    @property
-    def get_unique_id(self):
-        return "BoxMenu" + str(self.pk)
-
 
 class PageContentBoxItem(models.Model):
     file = BatonAiImageField(
@@ -778,6 +774,9 @@ class PageContentBoxItem(models.Model):
 
 
 class PageContentRssFeed(PageContent):
+    # the id the block always had in the page
+    unique_id_prefix = "Rss"
+
     rss_feed_url = models.URLField(_("rss feed url"), max_length=200)
     num_items = models.IntegerField(_("number of items"), default=5)
 
@@ -818,10 +817,6 @@ class PageContentRssFeed(PageContent):
 
     def get_render_template(self):
         return "pages/page_content_rss_feed.html"
-
-    @property
-    def get_unique_id(self):
-        return "Rss" + str(self.pk)
 
 
 class PageContentMap(PageContent):
@@ -872,10 +867,6 @@ class PageContentMap(PageContent):
 
     def get_render_template(self):
         return "pages/page_content_map.html"
-
-    @property
-    def get_unique_id(self):
-        return "Map" + str(self.pk)
 
     @property
     def map_data_id(self):
@@ -1227,10 +1218,6 @@ class PageContentVideo(PageContent):
     def get_render_template(self):
         return "pages/page_content_video.html"
 
-    @property
-    def get_unique_id(self):
-        return "Video" + str(self.pk)
-
 
 class PageContentColumns(PageContent):
     """Columns side by side, each with a text and a block of the page.
@@ -1323,10 +1310,6 @@ class PageContentColumns(PageContent):
 
     def get_render_template(self):
         return "pages/page_content_columns.html"
-
-    @property
-    def get_unique_id(self):
-        return "Columns" + str(self.pk)
 
 
 class PageContentColumn(models.Model):
@@ -1521,10 +1504,6 @@ class PageContentCards(PageContent):
 
     def get_render_template(self):
         return "pages/page_content_cards.html"
-
-    @property
-    def get_unique_id(self):
-        return "Cards" + str(self.pk)
 
 
 class PageContentCard(models.Model):

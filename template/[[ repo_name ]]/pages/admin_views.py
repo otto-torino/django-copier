@@ -113,9 +113,12 @@ class SaveContentBlocksPositionView(PermissionRequiredMixin, View):
             )
 
         for position, block_id in enumerate(block_ids):
-            content_block = blocks[block_id]
-            content_block.position = position
-            content_block.save()
+            blocks[block_id].position = position
+        # One query for the positions, then one save of the page, for its date
+        # and its search index: a save of each block would index the page
+        # again once for each of them
+        PageContent.objects.bulk_update(blocks.values(), ["position"])
+        page.save()
 
         return JsonResponse({"saved": True})
 

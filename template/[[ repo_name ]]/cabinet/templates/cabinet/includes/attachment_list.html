@@ -1,6 +1,6 @@
 {% comment %}The files of an attachment block, inside its accordion or not.{% endcomment %}
 <div class="flex flex-col gap-2">
-    {% for attachment in obj.files.all %}
+    {% for attachment in obj.listed_files %}
         <div class="mt-1 flex gap-2 odd:bg-white even:bg-gray-100">
             <div>
                 <a href="{{ attachment.file.file.url }}" class="text-primary" tabindex="-1" aria-hidden="true">

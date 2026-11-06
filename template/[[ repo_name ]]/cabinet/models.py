@@ -89,9 +89,13 @@ try:
         def class_name(self):
             return self.__class__.__name__
 
-        @property
-        def get_unique_id(self):
-            return "Attachment" + str(self.pk)
+        # the id the block always had in the page
+        unique_id_prefix = "Attachment"
+
+        def listed_files(self):
+            """The attachments of the page, each with its file: one query, not
+            one for each file."""
+            return self.files.select_related("file")
 
         def get_content_label(self):
             return _("Attachment")
