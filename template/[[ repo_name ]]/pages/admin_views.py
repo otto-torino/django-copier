@@ -3,6 +3,7 @@ import json
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,19 +16,54 @@ from pages.copying import duplicate_block
 from pages.models import Page, PageContent
 
 
+def form_tabs(fieldsets):
+    """The tabs Baton makes of the fieldsets of a form, as (label, anchor):
+    the first fieldset names them in its classes and is the main tab, each
+    other one is the fieldset with the class of its tab. Baton opens the tab
+    of the anchor of the address."""
+    if not fieldsets:
+        return []
+    (main_title, main), others = fieldsets[0], fieldsets[1:]
+    titles = {
+        cls.removeprefix("tab-fs-"): title
+        for title, options in others
+        for cls in options.get("classes", ())
+        if cls.startswith("tab-fs-")
+    }
+    tabs = [(main_title, "#main-tab")]
+    for cls in main.get("classes", ()):
+        name = cls.removeprefix("baton-tab-fs-")
+        if cls.startswith("baton-tab-fs-") and name in titles:
+            tabs.append((titles[name], f"#fs-{name}"))
+    return tabs
+
+
 class EditPageContentsView(PermissionRequiredMixin, View):
     permission_required = ["pages.add_page", "pages.change_page"]
 
     def get(self, request, id):
         page = get_object_or_404(Page, id=id)
+        page_admin = admin.site._registry[Page]
+        change_url = reverse("admin:pages_page_change", args=[page.pk])
         context = {
             "site_header": mark_safe(settings.BATON.get("SITE_HEADER", None)),
-            "title": page.title + "/" + _("Page contents"),
+            # the header of the page form, so that the two read as one page
+            "title": _("Change %s") % Page._meta.verbose_name,
+            "subtitle": str(page),
             "is_popup": False,
             "has_permission": True,
             "site_url": reverse("home"),
             "page": page,
-            "page_admin": admin.site._registry[Page],
+            "page_admin": page_admin,
+            "page_tabs": [
+                (label, f"{change_url}{anchor}")
+                for label, anchor in form_tabs(page_admin.get_fieldsets(request, page))
+            ],
+            "history_url": reverse("admin:pages_page_history", args=[page.pk]),
+            "view_on_site_url": reverse(
+                "admin:view_on_site",
+                args=[ContentType.objects.get_for_model(Page).pk, page.pk],
+            ),
         }
 
         return render(

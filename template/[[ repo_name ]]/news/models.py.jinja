@@ -1,3 +1,4 @@
+from core.fields import AltTextField
 from baton.fields import BatonAiImageField
 from django.contrib.sites.models import Site
 from django.db import models
@@ -36,11 +37,11 @@ class NewsArticle(TimeStampedModel, Searchable):
         _("image"),
         upload_to="news/images/",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
         blank=True,
         null=True,
     )
-    alt_text = models.CharField(_("alt text"), max_length=255, blank=True)
+    alt_text = AltTextField(_("alt text"), max_length=255, blank=True)
     subject_location = models.CharField(max_length=7, default="50,50")
     publication_date = models.DateField(
         _("publication date"),

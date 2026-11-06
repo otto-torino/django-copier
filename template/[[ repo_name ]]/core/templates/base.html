@@ -16,6 +16,7 @@
                 <meta property="og:url" content="{% block meta_og_url %}{{ ABSURL }}{% endblock meta_og_url %}" />
                 <meta property="og:description" content="{% block meta_og_description %}{{ pref.meta_description }}{% endblock meta_og_description %}" />
                 {% if pref.meta_image %}<meta property="og:image" content="{% block meta_og_image %}{{ pref.meta_image.url }}{% endblock meta_og_image %}" />{% endif %}
+                {% if pref.meta_image and pref.meta_image_alt_text %}<meta property="og:image:alt" content="{% block meta_og_image_alt %}{{ pref.meta_image_alt_text }}{% endblock meta_og_image_alt %}" />{% endif %}
                 {% block meta_og_extra %}{% endblock meta_og_extra %}
                 {% comment %}Twitter{% endcomment %}
                 <meta name="twitter:card" content="{% block meta_tw_card %}summary{% endblock meta_tw_card %}" />
@@ -23,6 +24,7 @@
                 <meta name="twitter:title" content="{% block meta_tw_title %}{{ pref.meta_title }}{% endblock meta_tw_title %}" />
                 <meta name="twitter:description" content="{% block meta_tw_description %}{{ pref.meta_description }}{% endblock meta_tw_description %}" />
                 {% if pref.meta_image %}<meta property="twitter:image" content="{% block meta_tw_image %}{{ pref.meta_image.url }}{% endblock meta_tw_image %}" />{% endif %}
+                {% if pref.meta_image and pref.meta_image_alt_text %}<meta name="twitter:image:alt" content="{% block meta_tw_image_alt %}{{ pref.meta_image_alt_text }}{% endblock meta_tw_image_alt %}" />{% endif %}
                 {% block meta_tw_extra %}{% endblock meta_tw_extra %}
             {% endblock meta %}
 

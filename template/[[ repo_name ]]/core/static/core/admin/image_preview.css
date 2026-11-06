@@ -1,0 +1,9 @@
+/* Keep the configured preview width usable in narrow columns and on mobile. */
+.subject-image-preview {
+    max-width: 100%;
+}
+
+.subject-image-preview img {
+    max-width: 100%;
+    height: auto;
+}

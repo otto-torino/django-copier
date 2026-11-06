@@ -484,6 +484,22 @@ class RenderingTests(unittest.TestCase):
                 ("it", "en"),
             ),
             (
+                "regional-language",
+                (
+                    "project_name=Regional Project",
+                    "repo_name=regional-project",
+                    "use_translations=true",
+                    "languages=[pt-br,en]",
+                    "default_language=pt-br",
+                ),
+                "regional-project",
+                False,
+                False,
+                False,
+                True,
+                ("pt-br", "en"),
+            ),
+            (
                 "news",
                 (
                     "project_name=News Project",
@@ -593,7 +609,8 @@ class RenderingTests(unittest.TestCase):
                     translated = (
                         lineup_migrations / "0002_menuitem_translations.py"
                     ).read_text()
-                    for language in languages:
+                    for language_code in languages:
+                        language = language_code.replace("-", "_")
                         self.assertIn(f"name='label_{language}'", translated)
                         self.assertIn(f"name='title_{language}'", translated)
                         self.assertIn(

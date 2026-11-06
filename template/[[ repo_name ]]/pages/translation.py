@@ -35,7 +35,7 @@ except AlreadyRegistered:
 
 @register(Page)
 class PageTranslationOptions(TranslationOptions):
-    fields = ("title",)
+    fields = ("title", "alt_text")
 
 
 @register(PageContentText)
@@ -45,11 +45,11 @@ class PageContentTextTranslationOptions(TranslationOptions):
 
 @register(PageContentImage)
 class PageContentImageTranslationOptions(TranslationOptions):
-    fields = ('caption',)
+    fields = ("caption", "alt_text")
 
 @register(PageContentTextImage)
 class PageContentTextImageTranslationOptions(TranslationOptions):
-    fields = ("text",'caption',)
+    fields = ("text", "caption", "alt_text")
 
 
 @register(PageContentMultiImage)
@@ -59,7 +59,7 @@ class PageContentMultiImageTranslationOptions(TranslationOptions):
 
 @register(PageContentMultiImageItem)
 class PageContentMultiImageItemTranslationOptions(TranslationOptions):
-    fields = ("caption",)
+    fields = ("caption", "alt_text")
 
 
 @register(PageContentBoxMenu)
@@ -69,7 +69,7 @@ class PageContentBoxMenuTranslationOptions(TranslationOptions):
 
 @register(PageContentBoxItem)
 class PageContentBoxItemTranslationOptions(TranslationOptions):
-    fields = ("name", "icon_text", )
+    fields = ("name", "icon_text", "alt_text")
 
 
 @register(PageContentRssFeed)

@@ -1,7 +1,12 @@
 from modeltranslation.translator import AlreadyRegistered, TranslationOptions, register
 from pages.models import PageContent
 
-from .models import AttachmentModel, PageContentMultiAttachment
+from .models import AttachmentModel, File, PageContentMultiAttachment
+
+
+@register(File)
+class FileTranslationOptions(TranslationOptions):
+    fields = ("image_alt_text",)
 
 
 try:

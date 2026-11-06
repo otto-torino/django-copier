@@ -1,3 +1,4 @@
+from core.fields import AltTextField
 from baton.fields import BatonAiImageField
 from django.contrib.sites.models import Site
 from django.core.exceptions import ValidationError
@@ -36,11 +37,11 @@ class Event(TimeStampedModel, Searchable):
         _("image"),
         upload_to="events/images/",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
         blank=True,
         null=True,
     )
-    alt_text = models.CharField(_("alt text"), max_length=255, blank=True)
+    alt_text = AltTextField(_("alt text"), max_length=255, blank=True)
     subject_location = models.CharField(max_length=7, default="50,50")
     date = models.DateField(_("start date"))
     date_end = models.DateField(_("end date"), blank=True, null=True)

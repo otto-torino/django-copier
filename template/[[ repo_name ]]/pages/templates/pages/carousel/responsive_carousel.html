@@ -29,7 +29,7 @@
             {% endwith %}
             {% with "600x"|concat_string:obj.height as crop %}
               {% thumbnail image crop crop=image.file.sorl as im %}
-                <img class="rounded-md" srcset="{{ im.url }}" alt="{{ image.caption }}">
+                <img class="rounded-md" srcset="{{ im.url }}" alt="{{ image.alt_text|default:image.caption|default_if_none:'' }}">
               {% endthumbnail %}
             {% endwith %}
           </picture>

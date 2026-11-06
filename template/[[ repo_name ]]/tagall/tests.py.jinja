@@ -65,7 +65,7 @@ class TagTests(TestCase):
         self.assertEqual(response.status_code, 200)
         tag = Tag.objects.get(name="Middle Ages")
         self.assertEqual(tag.slug, "middle-ages")
-        [%% if use_translations %%]self.assertEqual(tag.name_[[ default_language ]], "Middle Ages")[%% endif %%]
+        [%% if use_translations %%]self.assertEqual(tag.name_[[ default_language | replace("-", "_") ]], "Middle Ages")[%% endif %%]
 
     def test_page_admin_configures_baton_tag_suggestions(self):
         page_admin = admin.site._registry[Page]

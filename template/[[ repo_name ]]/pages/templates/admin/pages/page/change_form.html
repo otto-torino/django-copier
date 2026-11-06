@@ -1,6 +1,23 @@
 {% extends "admin/change_form.html" %}
 {% load i18n %}
-{% block object-tools-items %}
-{{ block.super }}
-    <button onclick="window.location.href=`{% url 'admin:pages_page_edit_content' object_id %}`" class="btn btn-secondary"><i class="material-symbols-outlined me-2">edit</i>{% trans 'Contents' %}</button>
+{% comment %}
+The contents of the page are one more tab of its form, a link to their screen:
+Baton builds the tabs from the fieldsets, the last one is added when they are
+ready. A new page has no contents yet.
+{% endcomment %}
+{% block extrahead %}
+    {{ block.super }}
+    {% if object_id %}
+        <script>
+            Baton.Dispatcher.register('onTabsReady', function () {
+                const tabs = document.querySelector('#content-main .nav-tabs')
+                if (!tabs || tabs.querySelector('[data-contents-tab]')) return
+                const item = document.createElement('li')
+                item.className = 'nav-item'
+                item.style.order = 99
+                item.innerHTML = '<a class="nav-link" data-contents-tab href="{% url 'admin:pages_page_edit_content' object_id %}">{{ _("Contents")|escapejs }}</a>'
+                tabs.appendChild(item)
+            })
+        </script>
+    {% endif %}
 {% endblock %}

@@ -9,13 +9,13 @@ from django.utils.translation import gettext_lazy as _
 from sorl.thumbnail import get_thumbnail
 from django.urls import reverse
 [%% if use_translations -%%]
-from modeltranslation.admin import TranslationTabularInline
+from modeltranslation.admin import TranslationAdmin, TranslationTabularInline
 from modeltranslation.settings import AVAILABLE_LANGUAGES
 from modeltranslation.utils import build_localized_fieldname
 [%% endif %%]
 
 @admin.register(File)
-class FileAdmin(FileAdminBase):
+class FileAdmin(FileAdminBase[%% if use_translations %%], TranslationAdmin[%% endif %%]):
     list_display = [
         "admin_thumbnail",
         "admin_file_name",
@@ -25,6 +25,11 @@ class FileAdmin(FileAdminBase):
     ]
     list_display_links = ["admin_thumbnail", "admin_file_name"]
 
+[%% if use_translations %%]
+    def get_fieldsets(self, request, obj=None):
+        return self._patch_fieldsets(super().get_fieldsets(request, obj))
+
+[%% endif %%]
     @admin.display(description="")
     def admin_thumbnail(self, instance):
         if instance.image_file.name:

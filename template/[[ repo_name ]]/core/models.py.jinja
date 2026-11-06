@@ -1,7 +1,10 @@
+from baton.fields import BatonAiImageField
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from preferences_utils.models import PreferencesUtilsModel
+
+from .fields import AltTextField, SubjectLocationField
 
 
 # custom user model just in case we need to add functionality
@@ -45,9 +48,13 @@ class Preferences(PreferencesUtilsModel):
         default=[[ project_description | tojson ]],
         blank=True,
     )
-    meta_image = models.ImageField(
-        _("meta image"), upload_to="preferences/", blank=True, null=True
+    meta_image = BatonAiImageField(
+        _("meta image"), upload_to="preferences/", blank=True, null=True,
+        subject_location_field="meta_image_subject_location",
+        alt_field=[%% if use_translations %%]"meta_image_alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"meta_image_alt_text"[%% endif %%],
     )
+    meta_image_subject_location = SubjectLocationField()
+    meta_image_alt_text = AltTextField(_("alt text"), blank=True)
     meta_keywords = models.CharField(
         _("meta keywords"), max_length=255, blank=True, null=True
     )

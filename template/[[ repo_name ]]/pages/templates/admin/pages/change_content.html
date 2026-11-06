@@ -35,50 +35,47 @@
     </script>
 {% endblock %}
 
+{% comment %}
+The header of the page form: the same breadcrumbs, title and tools, and its
+tabs, of which the contents are one more.
+{% endcomment %}
 {% if not is_popup %}
     {% block breadcrumbs %}
         <div class="breadcrumbs">
             <a href="{% url 'admin:index' %}">{% trans "Home" %}</a>
             &rsaquo; <a href="{% url 'admin:app_list' app_label='pages' %}">{% trans "Pages" %}</a>
             &rsaquo; <a href="{% url 'admin:pages_page_changelist' %}">{% trans "Pages" %}</a>
-            &rsaquo; <a href="{% url 'admin:pages_page_change' page.id %}">{{ page.title }}</a>
-            &rsaquo; {% trans "Contents" %}
+            &rsaquo; {{ page }}
         </div>
     {% endblock %}
 {% endif %}
 
+{# the tools are inside the content, as in the page form #}
 {% block object-tools %}{% endblock %}
 
 {% block content %}
     <div id="content-main">
+            <ul class="object-tools">
+                <li><a href="{{ history_url }}" class="historylink">{% trans "History" %}</a></li>
+                <li><a href="{{ view_on_site_url }}" class="viewsitelink">{% trans "View on site" %}</a></li>
+                <button type="button" class="btn btn-secondary" data-add-block><i class="material-symbols-outlined me-2" aria-hidden="true">add</i>{% trans "Add block" %}</button>
+            </ul>
         <div class="module" id="changelist">
             <div id="toolbar" class="content-blocks-toolbar">
-                <nav class="nav nav-tabs content-blocks-tabs" aria-label="{% trans 'Page' %}">
-                    <a class="nav-link" href="{% url 'admin:pages_page_change' page.id %}">{% trans "Page data" %}</a>
-                    <a class="nav-link active" aria-current="page" href="">{% trans "Contents" %}</a>
-                </nav>
-                <div class="content-blocks-toolbar-actions">
-                    <a class="btn btn-outline-secondary" href="{{ page.get_absolute_url }}" target="_blank" rel="noopener">
-                        <i class="material-symbols-outlined me-1" aria-hidden="true">open_in_new</i>{% trans "View on site" %}
-                    </a>
-                    <button type="button" class="btn btn-primary" data-add-block>
-                        <i class="material-symbols-outlined me-1" aria-hidden="true">add</i>{% trans "Add block" %}
-                    </button>
-                </div>
+                <ul class="nav nav-tabs content-blocks-tabs">
+                    {% for label, url in page_tabs %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url }}">{{ label }}</a></li>
+                    {% endfor %}
+                    <li class="nav-item"><a class="nav-link active" aria-current="page" href="">{% trans "Contents" %}</a></li>
+                </ul>
             </div>
             {% comment %}
             The types of block, to choose the one to add. The links carry the page
             and, from a "+" of the list, the block after which the new one goes.
             {% endcomment %}
-            <dialog id="add-block-dialog" class="content-blocks-dialog" aria-labelledby="add-block-title"
+            <template id="add-block-template" data-title="{% trans 'Add a block' %}"
                     data-after-message="{% trans 'The new block will go after “%(name)s”.' %}"
                     data-start-message="{% trans 'The new block will go at the beginning of the page.' %}">
-                <div class="content-blocks-dialog-header">
-                    <h2 id="add-block-title">{% trans "Add a block" %}</h2>
-                    <button type="button" class="btn content-block-action" data-close-dialog>
-                        <i class="material-symbols-outlined" aria-hidden="true">close</i><span class="visually-hidden">{% trans "Close" %}</span>
-                    </button>
-                </div>
                 <p class="content-blocks-dialog-note" data-insert-note hidden></p>
                 <ul class="content-types">
                     {% for name, model in page_admin.content_models.items %}
@@ -93,7 +90,7 @@
                         </li>
                     {% endfor %}
                 </ul>
-            </dialog>
+            </template>
             <form
                 action="" id="changelist-form" data-page-id="{{ page.id }}"
                 data-save-position-url="{% url 'admin:pages_page_save_position' page.id %}"

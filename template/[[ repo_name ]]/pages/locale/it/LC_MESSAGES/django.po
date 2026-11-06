@@ -260,8 +260,8 @@ msgid "Columns"
 msgstr "Colonne"
 
 #: models.py
-msgid "Columns side by side with text and blocks of the page, such as a map or a carousel"
-msgstr "Colonne affiancate con testo e blocchi della pagina, come una mappa o un carosello"
+msgid "Columns side by side with text and blocks of the page"
+msgstr "Colonne affiancate con testo e blocchi della pagina"
 
 #: models.py
 msgid "Above the block"
@@ -353,8 +353,8 @@ msgid "Cards"
 msgstr "Schede"
 
 #: models.py
-msgid "Grid of cards with an image and a text: people, offices, contacts"
-msgstr "Griglia di schede con un'immagine e un testo: persone, uffici, contatti"
+msgid "Grid of cards with an image and a text"
+msgstr "Griglia di schede con un'immagine e un testo"
 
 #: models.py
 msgid "Leave it empty when the text already says what the image shows."

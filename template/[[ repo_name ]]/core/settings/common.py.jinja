@@ -234,6 +234,8 @@ def _current_site_copyright():
 current_site_copyright = lazy(_current_site_copyright, str)
 
 BATON = {
+    # Twice the standard width, to set the image subject comfortably.
+    'IMAGE_PREVIEW_WIDTH': 400,
     'SITE_HEADER': [[ project_name | tojson ]],
     'SITE_TITLE': [[ project_name | tojson ]],
     'INDEX_TITLE': 'Site administration',

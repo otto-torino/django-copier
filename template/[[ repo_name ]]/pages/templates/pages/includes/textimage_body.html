@@ -13,7 +13,7 @@ to the text, at most 96px wide and never larger than its own size.
     <div class="{% if narrow %}max-w-24 shrink-0 md:max-w-none{% endif %} {% if position == 'left' %}md:w-(--column) md:shrink-0{% elif position == 'right' %}md:flex-1{% endif %}">
         <div class="js-pswp-gallery">
             <a href="{{ obj.image.url }}" class="js-lightbox-item block cursor-zoom-in" data-pswp-width="{{ obj.image.width }}" data-pswp-height="{{ obj.image.height }}">
-                <img width="{{ obj.image.width }}" height="{{ obj.image.height }}" class="h-auto {% if narrow %}max-w-full md:w-full{% else %}w-full{% endif %}" src="{{ obj.image.url }}" alt="{{ obj.caption|default_if_none:'' }}" />
+                <img width="{{ obj.image.width }}" height="{{ obj.image.height }}" class="h-auto {% if narrow %}max-w-full md:w-full{% else %}w-full{% endif %}" src="{{ obj.image.url }}" alt="{{ obj.alt_text|default:obj.caption|default_if_none:'' }}" />
                 {% if obj.show_captions %}
                     <span class="pswp-caption-content">{{ obj.caption|default_if_none:"" }} <em>{% if obj.credits %}by {{ obj.credits }}{% endif %}</em></span>
                 {% endif %}

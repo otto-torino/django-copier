@@ -279,7 +279,8 @@ class AddBlockTests(TestCase):
         # the name of the default language with modeltranslation
         field = "name"
         if "modeltranslation" in settings.INSTALLED_APPS:
-            field = f"name_{getattr(settings, 'MODELTRANSLATION_DEFAULT_LANGUAGE', settings.LANGUAGE_CODE)}"
+            language = getattr(settings, "MODELTRANSLATION_DEFAULT_LANGUAGE", settings.LANGUAGE_CODE)
+            field = "name_" + language.replace("-", "_")
         return self.client.post(url, {field: name, "enabled": "on"})
 
     def names(self):
@@ -322,4 +323,20 @@ class AddBlockTests(TestCase):
         self.assertContains(response, 'id="layout-blocks-list"')
         self.assertContains(response, "content-block-badge content-block-off")
         self.assertContains(response, reverse("admin:pages_page_change", args=[self.page.pk]))
-        self.assertContains(response, f'href="{self.page.get_absolute_url()}"')
+
+    def test_the_header_is_the_one_of_the_page_form_with_the_contents_as_a_tab(self):
+        change_url = reverse("admin:pages_page_change", args=[self.page.pk])
+
+        response = self.client.get(reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk}))
+
+        self.assertContains(response, f'<h1>{response.context["title"]}</h1>')
+        self.assertContains(response, f"<h2>{self.page}</h2>")
+        for anchor in ("#main-tab", "#fs-seo", "#fs-adv"):
+            self.assertContains(response, f'href="{change_url}{anchor}"')
+        self.assertContains(response, 'class="nav-link active" aria-current="page"')
+        self.assertContains(response, reverse("admin:pages_page_history", args=[self.page.pk]))
+        self.assertContains(response, 'class="viewsitelink"')
+
+        form = self.client.get(change_url)
+        self.assertContains(form, "data-contents-tab")
+        self.assertContains(form, reverse("admin:pages_page_edit_content", kwargs={"id": self.page.pk}))

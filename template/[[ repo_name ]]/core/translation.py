@@ -17,5 +17,6 @@ class PreferencesTranslationOptions(TranslationOptions):
         "site_title",
         "meta_title",
         "meta_description",
+        "meta_image_alt_text",
         "meta_keywords",
     )

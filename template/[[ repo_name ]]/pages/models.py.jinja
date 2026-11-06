@@ -24,6 +24,7 @@ from django_extensions.db.models import TimeStampedModel
 from editor_js.fields import EditorJSField
 from .managers import PageContentQuerySet, PageManager
 from search_app.models import Searchable
+from core.fields import AltTextField
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -68,11 +69,11 @@ class Page(TimeStampedModel, Searchable):
         verbose_name=_("header image"),
         upload_to="pages/images/",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
         blank=True,
         null=True,
     )
-    alt_text = models.CharField(_("alt text"), max_length=200, blank=True)
+    alt_text = AltTextField(_("alt text"), max_length=200, blank=True)
     subject_location = models.CharField(max_length=7, default="50,50")
     tags = models.ManyToManyField(
         "tagall.Tag",
@@ -391,9 +392,10 @@ class PageContentImage(PageContent):
         verbose_name=_("image"),
         upload_to="pages/image_content/",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"caption_[[ default_language ]]"[%% else %%]"caption"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
     )
     subject_location = models.CharField(max_length=7, default="50,50")
+    alt_text = AltTextField(_("alt text"), blank=True)
     caption = models.TextField(_("caption"), blank=True, null=True)
     show_captions = models.BooleanField(
         _("show captions"),
@@ -464,7 +466,7 @@ class PageContentTextImage(PageContent, AccordionBlock):
         verbose_name=_("image"),
         upload_to="pages/text_image_content",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"caption_[[ default_language ]]"[%% else %%]"caption"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
     )
     subject_location = models.CharField(max_length=7, default="50,50")
     image_position = models.CharField(
@@ -475,6 +477,7 @@ class PageContentTextImage(PageContent, AccordionBlock):
         default=True,
         help_text=_("set to true if you want to show the captions of the images"),
     )
+    alt_text = AltTextField(_("alt text"), blank=True)
     caption = models.TextField(_("caption"), blank=True, null=True)
     credits = models.TextField(_("credits"), blank=True, null=True)
 
@@ -618,12 +621,13 @@ class PageContentMultiImageItem(models.Model):
         upload_to="pages/multi_image_content",
         verbose_name=_("file"),
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"caption_[[ default_language ]]"[%% else %%]"caption"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
     )
     subject_location = models.CharField(
         _("subject coordinates"), max_length=7, default="50,50"
     )
     position = models.IntegerField(_("order"), default=0)
+    alt_text = AltTextField(_("alt text"), blank=True)
     caption = models.TextField(_("caption"), blank=True, null=True)
     credits = models.TextField(_("credits"), blank=True, null=True)
     block = models.ForeignKey(
@@ -722,11 +726,11 @@ class PageContentBoxItem(models.Model):
         _("image"),
         upload_to="pages/box_menu_content",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
         blank=True,
         null=True,
     )
-    alt_text = models.CharField(_("alt text"), max_length=255, blank=True, null=True)
+    alt_text = AltTextField(_("alt text"), max_length=255, blank=True, null=True)
     subject_location = models.CharField(
         _("subject coordinates"), max_length=7, default="50,50"
     )
@@ -1303,7 +1307,7 @@ class PageContentColumns(PageContent):
         return f"{self.get_layout_display()} · {columns}"
 
     def get_content_description(self):
-        return _("Columns side by side with text and blocks of the page, such as a map or a carousel")
+        return _("Columns side by side with text and blocks of the page")
 
     def get_add_form_url(self):
         return reverse_lazy("admin:pages_pagecontentcolumns_add")
@@ -1501,7 +1505,7 @@ class PageContentCards(PageContent):
         return f"{cards} · {_('as accordions')}" if self.collapsible else cards
 
     def get_content_description(self):
-        return _("Grid of cards with an image and a text: people, offices, contacts")
+        return _("Grid of cards with an image and a text")
 
     def get_add_form_url(self):
         return reverse_lazy("admin:pages_pagecontentcards_add")
@@ -1531,11 +1535,11 @@ class PageContentCard(models.Model):
         verbose_name=_("image"),
         upload_to="pages/cards/",
         subject_location_field="subject_location",
-        alt_field=[%% if use_translations %%]"alt_text_[[ default_language ]]"[%% else %%]"alt_text"[%% endif %%],
+        alt_field=[%% if use_translations %%]"alt_text_[[ default_language | replace("-", "_") ]]"[%% else %%]"alt_text"[%% endif %%],
         blank=True,
         null=True,
     )
-    alt_text = models.CharField(
+    alt_text = AltTextField(
         _("alt text"),
         max_length=255,
         blank=True,

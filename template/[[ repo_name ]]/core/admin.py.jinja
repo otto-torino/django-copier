@@ -47,7 +47,7 @@ admin.site.register(User, CustomUserAdmin)
 
 
 @admin.register(Preferences)
-class PreferencesAdmin(PreferencesUtilsAdmin):
+class PreferencesAdmin([%% if use_translations %%]TranslationAdmin, [%% endif %%]PreferencesUtilsAdmin):
     list_display = ('id', )
 
     fieldsets = (
@@ -56,7 +56,7 @@ class PreferencesAdmin(PreferencesUtilsAdmin):
             "classes": ("baton-tabs-init", "baton-tab-fs-meta", ),
         }),
         (_('Meta'), {
-            'fields': ("meta_title", "meta_description", "meta_image", "meta_keywords",),
+            'fields': ("meta_title", "meta_description", "meta_image", "meta_image_alt_text", "meta_image_subject_location", "meta_keywords",),
             "classes": ("tab-fs-meta",),
         }),
     )

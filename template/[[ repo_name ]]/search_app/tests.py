@@ -1,3 +1,6 @@
+from unittest import skipUnless
+
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
@@ -77,7 +80,7 @@ class SearchViewTests(TestCase):
         self.page.sites.add(self.site)
 
     def test_search_executes_with_the_active_language(self):
-        with override("it"):
+        with override(settings.LANGUAGE_CODE):
             response = self.client.get(
                 reverse("search_app:search"),
                 {"q": "needle"},
@@ -127,6 +130,7 @@ class SearchViewTests(TestCase):
         self.assertIs(response.context["results_truncated"], True)
         self.assertContains(response, "Showing the first 2 results")
 
+    @skipUnless("it" in dict(settings.LANGUAGES), "Italian is not enabled")
     def test_query_made_of_stop_words_only_is_searched_as_is(self):
         page = Page.objects.create(
             url="/chi-siamo/",
