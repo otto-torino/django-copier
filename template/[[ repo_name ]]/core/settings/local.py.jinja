@@ -18,7 +18,7 @@ INSTALLED_APPS += (
 
 MIDDLEWARE = (
     'debug_toolbar.middleware.DebugToolbarMiddleware',
-    'django_browser_reload.middleware.BrowserReloadMiddleware',
+    'core.local_middleware.PageBrowserReloadMiddleware',
 ) + MIDDLEWARE
 
 TEMPLATES[0]['OPTIONS']['debug'] = True
@@ -39,9 +39,12 @@ EDITOR_JS["CSS_FILES"] = [
 JQUERY_URL = ''
 
 def show_toolbar(request):
+    from core.local_middleware import is_editor_page
+
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return False
-    return True
+    # the editors are pages of their own, as many as the forms have
+    return not is_editor_page(request)
 
 DEBUG_TOOLBAR_CONFIG = {
     'SHOW_TOOLBAR_CALLBACK': show_toolbar,
