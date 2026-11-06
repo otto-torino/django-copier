@@ -1,8 +1,10 @@
 /* The list of the page contents, see admin/pages/includes/content_block_row.html.
    Bootstrap variables, so that it follows the light and the dark theme. */
-/* As wide as the module, as the lists of the other admin pages */
+/* As wide as the module, as the lists of the other admin pages; the first
+   block where the fields of the tabs of the page form start: below the
+   padding of a fieldset in a tab and that of its first row */
 .content-blocks-list {
-    padding: 0 0 1rem;
+    padding: calc(15px + 1rem) 0 1rem;
 }
 
 /* The rows start on the line of the tabs, as the inlines of a form: Baton pads
@@ -11,17 +13,24 @@
     padding: 0 .5rem 1rem !important;
 }
 
-/* The rows as the stacked inlines of Baton: a list on the background of the
-   box, a thin line between the rows, a bar on the side of an open preview */
+/* The rows as the stacked inlines of Baton: bars apart, in the color of the
+   inline titles; an open preview stays on the background of the box, with a
+   bar on its side from the row down */
 .content-block {
-    margin: 0;
+    --content-block-row-bg: var(--bs-baton-changeform-inline-related-title-bg);
+    margin: 0 0 8px;
     border: 0;
-    border-bottom: 1px solid var(--bs-border-color);
-    border-radius: 0;
+    border-radius: 8px;
     background: transparent;
 }
 
 .content-block:has(> .content-block-preview.show, > .content-block-preview.collapsing) {
+    border-radius: 8px 8px 0 0;
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+}
+
+.content-block:has(> .content-block-preview.show, > .content-block-preview.collapsing) > .content-block-row {
+    border-radius: 8px 8px 0 0;
     box-shadow: inset 3px 0 0 var(--bs-primary);
 }
 
@@ -40,10 +49,13 @@
     gap: 10px;
     min-height: 62px;
     padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--content-block-row-bg);
 }
 
+/* a shade darker in the light theme, lighter in the dark one */
 .content-block-row:hover {
-    background: var(--bs-tertiary-bg);
+    background: color-mix(in srgb, var(--content-block-row-bg), var(--bs-body-color) 6%);
 }
 
 .content-block-drag-handle {
@@ -70,7 +82,7 @@
     place-items: center;
     height: 38px;
     border-radius: 7px;
-    background: var(--bs-secondary-bg);
+    background: var(--bs-baton-changeform-bg);
     color: var(--bs-emphasis-color);
 }
 
@@ -185,7 +197,7 @@
 }
 
 .content-block-preview {
-    padding: 12px;
+    padding: 12px 12px 12px 15px;
 }
 
 .collapsing {
