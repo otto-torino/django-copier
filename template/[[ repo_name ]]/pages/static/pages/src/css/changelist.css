@@ -2,14 +2,27 @@
    Bootstrap variables, so that it follows the light and the dark theme. */
 /* As wide as the module, as the lists of the other admin pages */
 .content-blocks-list {
-    padding: .5rem 0 1rem;
+    padding: 0 0 1rem;
 }
 
+/* The rows start on the line of the tabs, as the inlines of a form: Baton pads
+   the form of the change lists with !important */
+#changelist #changelist-form {
+    padding: 0 .5rem 1rem !important;
+}
+
+/* The rows as the stacked inlines of Baton: a list on the background of the
+   box, a thin line between the rows, a bar on the side of an open preview */
 .content-block {
-    margin-bottom: .5rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .5rem;
-    background: var(--bs-body-bg);
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    border-radius: 0;
+    background: transparent;
+}
+
+.content-block:has(> .content-block-preview.show, > .content-block-preview.collapsing) {
+    box-shadow: inset 3px 0 0 var(--bs-primary);
 }
 
 .content-block:target {
@@ -24,9 +37,9 @@
 .content-block-row {
     display: flex;
     align-items: center;
-    gap: .75rem;
-    padding: .5rem .5rem .5rem .75rem;
-    border-radius: .5rem;
+    gap: 10px;
+    min-height: 62px;
+    padding: 10px 12px;
 }
 
 .content-block-row:hover {
@@ -35,8 +48,16 @@
 
 .content-block-drag-handle {
     display: flex;
+    flex-shrink: 0;
+    padding: 6px;
     color: var(--bs-secondary-color);
     cursor: grab;
+}
+
+.content-block-drag-handle .material-symbols-outlined,
+.content-block-action .material-symbols-outlined {
+    font-size: 22px;
+    line-height: 1;
 }
 
 .content-block-drag-handle:active {
@@ -44,15 +65,18 @@
 }
 
 .content-block-icon {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: .5rem;
+    display: grid;
+    flex: 0 0 38px;
+    place-items: center;
+    height: 38px;
+    border-radius: 7px;
     background: var(--bs-secondary-bg);
     color: var(--bs-emphasis-color);
+}
+
+.content-block-icon .material-symbols-outlined {
+    font-size: 21px;
+    line-height: 1;
 }
 
 .content-block-main {
@@ -78,29 +102,33 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: .375rem;
+    gap: 6px;
     min-width: 0;
 }
 
 .content-block-name {
     overflow: hidden;
+    font-size: .95rem;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+/* the type as the badge of the inlines, the options with a border */
 .content-block-badge {
-    padding: .05rem .45rem;
+    padding: 0 6px;
     border: 1px solid var(--bs-border-color);
-    border-radius: 1rem;
+    border-radius: 12px;
     color: var(--bs-secondary-color);
     font-size: .75rem;
     white-space: nowrap;
 }
 
 .content-block-type {
-    border-color: transparent;
+    padding: 1px 7px;
+    border: 0;
     background: var(--bs-secondary-bg);
-    color: var(--bs-body-color);
+    color: var(--bs-secondary-color);
 }
 
 .content-block-off {
@@ -117,9 +145,10 @@
 }
 
 .content-block-summary {
+    margin-top: 3px;
     overflow: hidden;
     color: var(--bs-secondary-color);
-    font-size: .875rem;
+    font-size: .85rem;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -144,7 +173,8 @@
     --bs-btn-hover-color: var(--bs-emphasis-color);
     --bs-btn-active-color: var(--bs-emphasis-color);
     display: flex;
-    padding: .375rem;
+    flex-shrink: 0;
+    padding: 6px;
     border: 0;
     color: var(--bs-secondary-color);
 }
@@ -155,24 +185,7 @@
 }
 
 .content-block-preview {
-    padding: .75rem 1rem 1rem;
-    border-top: 1px solid var(--bs-border-color);
-}
-
-.content-blocks-status {
-    min-height: 1.5rem;
-    margin: .75rem 0 0;
-    color: var(--bs-success-text-emphasis);
-    opacity: 0;
-    transition: opacity 200ms;
-}
-
-.content-blocks-status.is-visible {
-    opacity: 1;
-}
-
-.content-blocks-status.is-error {
-    color: var(--bs-danger-text-emphasis);
+    padding: 12px;
 }
 
 .collapsing {

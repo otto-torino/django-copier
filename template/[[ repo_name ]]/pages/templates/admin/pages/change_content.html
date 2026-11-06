@@ -98,7 +98,6 @@ tabs, of which the contents are one more.
                 data-error-message="{% trans 'The change has not been saved: reload the page and try again.' %}"
             >
             {% csrf_token %}
-            <p id="content-blocks-status" class="content-blocks-status" role="status" aria-live="polite"></p>
             {% if page.content_blocks.for_content.count %}
                 <div id="content-blocks-list" class="content-blocks-list">
                     {% for content_block in page.content_blocks.for_content %}

@@ -72,15 +72,27 @@
     return { order: order.map((id, position) => ({ id, position })) }
   }
 
-  // A message under the toolbar, read by the screen readers too
-  const statusLine = document.getElementById('content-blocks-status')
-  let statusTimer = null
+  // The outcome as a message of the admin, where Baton moves them, after
+  // the title, so that it looks as the others: one message, updated by the
+  // next change
   const showStatus = (message, isError) => {
-    statusLine.textContent = message
-    statusLine.classList.toggle('is-error', Boolean(isError))
-    statusLine.classList.add('is-visible')
-    clearTimeout(statusTimer)
-    statusTimer = setTimeout(() => statusLine.classList.remove('is-visible'), isError ? 8000 : 2500)
+    let list = document.querySelector('#content > .messagelist')
+    if (!list) {
+      list = document.createElement('ul')
+      list.className = 'messagelist'
+      const title = document.querySelector('#content > h1')
+      if (title) title.after(list)
+      else document.getElementById('content-main').before(list)
+    }
+    let item = list.querySelector('[data-contents-status]')
+    if (!item) {
+      item = document.createElement('li')
+      item.dataset.contentsStatus = ''
+      item.setAttribute('role', 'status')
+      list.append(item)
+    }
+    item.className = isError ? 'error' : 'success'
+    item.textContent = message
   }
 
   const post = (url, body) =>
